@@ -89,16 +89,17 @@ object WebhookSender {
     @Suppress("TooGenericExceptionCaught", "PrintStackTrace")
     private fun sendInternal(context: Context, payload: WebhookPayload): Boolean {
         val config = context.config
-        if (!config.webhookEnabled || config.webhookUrl.isBlank() || !shouldSendEvent(config, payload)) {
+        val urlString = config.webhookUrl.trim()
+        if (!config.webhookEnabled || urlString.isBlank() || !shouldSendEvent(config, payload)) {
             return false
         }
 
         val body = json.encodeToString(WebhookPayload.serializer(), payload)
         return try {
             when (config.webhookHttpMethod) {
-                WEBHOOK_METHOD_GET -> executeRequest(context, buildGetUrl(config.webhookUrl, payload), "GET", null)
-                WEBHOOK_METHOD_PUT -> executeRequest(context, URL(config.webhookUrl), "PUT", body)
-                else -> executeRequest(context, URL(config.webhookUrl), "POST", body)
+                WEBHOOK_METHOD_GET -> executeRequest(context, buildGetUrl(urlString, payload), "GET", null)
+                WEBHOOK_METHOD_PUT -> executeRequest(context, URL(urlString), "PUT", body)
+                else -> executeRequest(context, URL(urlString), "POST", body)
             }
         } catch (e: Exception) {
             e.printStackTrace()

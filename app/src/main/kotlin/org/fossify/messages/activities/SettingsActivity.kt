@@ -489,52 +489,66 @@ class SettingsActivity : SimpleActivity() {
     }
 
     private fun updateWebhookSettingVisibility() = binding.apply {
-        val enabled = config.webhookEnabled
-        settingsWebhookUrlHolder.beVisibleIf(enabled)
-        settingsWebhookMethodHolder.beVisibleIf(enabled)
-        settingsWebhookForwardIncomingHolder.beVisibleIf(enabled)
-        settingsWebhookForwardOutgoingHolder.beVisibleIf(enabled)
-        settingsWebhookBearerTokenHolder.beVisibleIf(enabled)
-        settingsWebhookTestHolder.beVisibleIf(enabled)
+        settingsWebhookTestHolder.beVisibleIf(config.webhookEnabled)
     }
 
     private fun setupWebhookEnabled() = binding.apply {
         settingsWebhookEnabled.isChecked = config.webhookEnabled
         settingsWebhookEnabledHolder.setOnClickListener {
             val turningOn = !settingsWebhookEnabled.isChecked
-            if (turningOn) {
-                when {
-                    config.webhookUrl.isBlank() -> {
-                        toast(R.string.webhook_url_required)
-                        return@setOnClickListener
-                    }
-
-                    !Patterns.WEB_URL.matcher(config.webhookUrl).matches() -> {
-                        toast(R.string.webhook_url_invalid)
-                        return@setOnClickListener
-                    }
-                }
+            if (!turningOn) {
+                settingsWebhookEnabled.isChecked = false
+                config.webhookEnabled = false
+                updateWebhookSettingVisibility()
+                return@setOnClickListener
             }
 
-            settingsWebhookEnabled.toggle()
-            config.webhookEnabled = settingsWebhookEnabled.isChecked
-            updateWebhookSettingVisibility()
+            val url = config.webhookUrl.trim()
+            if (url.isNotBlank() && Patterns.WEB_URL.matcher(url).matches()) {
+                enableWebhook()
+            } else {
+                askForWebhookUrlAndEnable(url)
+            }
+        }
+    }
+
+    private fun enableWebhook() {
+        binding.settingsWebhookEnabled.isChecked = true
+        config.webhookEnabled = true
+        updateWebhookSettingVisibility()
+    }
+
+    private fun askForWebhookUrlAndEnable(prefill: String) {
+        WebhookInputDialog(
+            activity = this,
+            titleId = R.string.webhook_url,
+            hintId = R.string.webhook_url,
+            prefill = prefill,
+            isUrl = true
+        ) { newUrl ->
+            val trimmed = newUrl.trim()
+            config.webhookUrl = trimmed
+            binding.settingsWebhookUrl.text = trimmed
+            if (trimmed.isNotBlank() && Patterns.WEB_URL.matcher(trimmed).matches()) {
+                enableWebhook()
+            }
         }
     }
 
     private fun setupWebhookUrl() = binding.apply {
-        settingsWebhookUrl.text = config.webhookUrl
+        settingsWebhookUrl.text = config.webhookUrl.trim()
         settingsWebhookUrlHolder.setOnClickListener {
             WebhookInputDialog(
                 activity = this@SettingsActivity,
                 titleId = R.string.webhook_url,
                 hintId = R.string.webhook_url,
-                prefill = config.webhookUrl,
+                prefill = config.webhookUrl.trim(),
                 isUrl = true
             ) { newUrl ->
-                config.webhookUrl = newUrl
-                settingsWebhookUrl.text = newUrl
-                if (config.webhookEnabled && newUrl.isBlank()) {
+                val trimmed = newUrl.trim()
+                config.webhookUrl = trimmed
+                settingsWebhookUrl.text = trimmed
+                if (config.webhookEnabled && trimmed.isBlank()) {
                     settingsWebhookEnabled.isChecked = false
                     config.webhookEnabled = false
                     updateWebhookSettingVisibility()
@@ -611,7 +625,7 @@ class SettingsActivity : SimpleActivity() {
         settingsWebhookTestHolder.setOnClickListener {
             when {
                 !config.webhookEnabled -> return@setOnClickListener
-                config.webhookUrl.isBlank() -> toast(R.string.webhook_url_required)
+                config.webhookUrl.trim().isBlank() -> toast(R.string.webhook_url_required)
                 else -> {
                     ensureBackgroundThread {
                         val success = WebhookSender.sendTest(this@SettingsActivity)

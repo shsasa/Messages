@@ -36,7 +36,7 @@ class WebhookInputDialog(
                 activity.setupDialogStuff(binding.root, this, titleId) { alertDialog ->
                     alertDialog.showKeyboard(binding.webhookInput)
                     alertDialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                        val value = binding.webhookInput.value
+                        val value = binding.webhookInput.value.let { if (isUrl) it.trim() else it }
                         if (isUrl && value.isNotEmpty() && !Patterns.WEB_URL.matcher(value).matches()) {
                             activity.toast(R.string.webhook_url_invalid)
                             return@setOnClickListener
