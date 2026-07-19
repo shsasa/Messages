@@ -10,6 +10,7 @@ import android.graphics.drawable.LayerDrawable
 import android.os.Bundle
 import android.provider.Telephony
 import android.text.TextUtils
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.content.res.AppCompatResources
 import org.fossify.commons.dialogs.PermissionRequiredDialog
 import org.fossify.commons.extensions.adjustAlpha
@@ -76,13 +77,19 @@ import org.greenrobot.eventbus.ThreadMode
 
 class MainActivity : SimpleActivity() {
     override var isSearchBarEnabled = true
-    
-    private val MAKE_DEFAULT_APP_REQUEST = 1
 
     private var storedTextColor = 0
     private var storedFontSize = 0
     private var lastSearchedText = ""
     private var bus: EventBus? = null
+
+    private val defaultSmsLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == RESULT_OK) {
+            askPermissions()
+        } else {
+            finish()
+        }
+    }
 
     private val binding by viewBinding(ActivityMainBinding::inflate)
 
@@ -157,7 +164,7 @@ class MainActivity : SimpleActivity() {
 
     private fun setupOptionsMenu() {
         binding.mainMenu.requireToolbar().inflateMenu(R.menu.menu_main)
-        binding.mainMenu.toggleHideOnScroll(true)
+        binding.mainMenu.toggleHideOnScroll(hideOnScroll = true)
         binding.mainMenu.setupMenu()
 
         binding.mainMenu.onSearchClosedListener = {
@@ -194,17 +201,6 @@ class MainActivity : SimpleActivity() {
         }
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, resultData: Intent?) {
-        super.onActivityResult(requestCode, resultCode, resultData)
-        if (requestCode == MAKE_DEFAULT_APP_REQUEST) {
-            if (resultCode == RESULT_OK) {
-                askPermissions()
-            } else {
-                finish()
-            }
-        }
-    }
-
     private fun storeStateVariables() {
         storedTextColor = getProperTextColor()
         storedFontSize = config.fontSize
@@ -222,7 +218,7 @@ class MainActivity : SimpleActivity() {
                     askPermissions()
                 } else {
                     val intent = roleManager.createRequestRoleIntent(RoleManager.ROLE_SMS)
-                    startActivityForResult(intent, MAKE_DEFAULT_APP_REQUEST)
+                    defaultSmsLauncher.launch(intent)
                 }
             } else {
                 toast(org.fossify.commons.R.string.unknown_error_occurred)
@@ -234,7 +230,7 @@ class MainActivity : SimpleActivity() {
             } else {
                 val intent = Intent(Telephony.Sms.Intents.ACTION_CHANGE_DEFAULT)
                 intent.putExtra(Telephony.Sms.Intents.EXTRA_PACKAGE_NAME, packageName)
-                startActivityForResult(intent, MAKE_DEFAULT_APP_REQUEST)
+                defaultSmsLauncher.launch(intent)
             }
         }
     }
@@ -242,10 +238,10 @@ class MainActivity : SimpleActivity() {
     // while SEND_SMS and READ_SMS permissions are mandatory, READ_CONTACTS is optional.
     // If we don't have it, we just won't be able to show the contact name in some cases
     private fun askPermissions() {
-        handlePermission(PERMISSION_READ_SMS) {
-            if (it) {
-                handlePermission(PERMISSION_SEND_SMS) {
-                    if (it) {
+        handlePermission(PERMISSION_READ_SMS) { isReadSmsGranted ->
+            if (isReadSmsGranted) {
+                handlePermission(PERMISSION_SEND_SMS) { isSendSmsGranted ->
+                    if (isSendSmsGranted) {
                         handlePermission(PERMISSION_READ_CONTACTS) {
                             handleNotificationPermission { granted ->
                                 if (!granted) {
@@ -262,6 +258,8 @@ class MainActivity : SimpleActivity() {
                                 bus!!.register(this)
                             } catch (_: Exception) {
                             }
+
+                            getCachedConversations()
                         }
                     } else {
                         finish()
@@ -330,7 +328,8 @@ class MainActivity : SimpleActivity() {
                 val threadId = cachedConversation.threadId
 
                 val isTemporaryThread = cachedConversation.isScheduled
-                val isConversationDeleted = !conversations.map { it.threadId }.contains(threadId)
+                val conversationThreadIds = conversations.map { it.threadId }
+                val isConversationDeleted = !conversationThreadIds.contains(threadId)
                 if (isConversationDeleted && !isTemporaryThread) {
                     conversationsDB.deleteThreadId(threadId)
                 }
@@ -358,9 +357,9 @@ class MainActivity : SimpleActivity() {
                     )
                 }
                 if (conv != null) {
-                    // FIXME: Scheduled message date is being reset here. Conversations with
-                    //  scheduled messages will have their original date.
-                    insertOrUpdateConversation(conv)
+                    // Scheduled message date is being reset here. Conversations with
+                    // scheduled messages will have their original date.
+                    insertOrUpdateConversation(conv, cachedConv)
                 }
             }
 

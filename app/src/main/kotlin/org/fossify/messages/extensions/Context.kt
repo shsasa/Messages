@@ -1256,11 +1256,18 @@ fun Context.insertOrUpdateConversation(
     cachedConv: Conversation? = conversationsDB.getConversationWithThreadId(conversation.threadId),
 ) {
     var updatedConv = conversation
-    if (cachedConv != null && cachedConv.usesCustomTitle) {
-        updatedConv = updatedConv.copy(
-            title = cachedConv.title,
-            usesCustomTitle = true
-        )
+    if (cachedConv != null) {
+        if (cachedConv.usesCustomTitle) {
+            updatedConv = updatedConv.copy(
+                title = cachedConv.title,
+                usesCustomTitle = true
+            )
+        }
+
+        // if the cached conversation has a newer date, it might be from a scheduled message, so keep it
+        if (cachedConv.date > conversation.date) {
+            updatedConv = updatedConv.copy(date = cachedConv.date)
+        }
     }
     conversationsDB.insertOrUpdate(updatedConv)
 }

@@ -21,7 +21,7 @@ class SmsSender(val app: Application) {
     // This should be called from a RequestWriter queue thread
     fun sendMessage(
         subId: Int, destination: String, body: String, serviceCenter: String?,
-        requireDeliveryReport: Boolean, messageUri: Uri
+        requireDeliveryReport: Boolean, messageUri: Uri,
     ) {
         var dest = destination
         if (body.isEmpty()) {
@@ -38,7 +38,7 @@ class SmsSender(val app: Application) {
         // Divide the input message by SMS length limit
         val smsManager = getSmsManager(subId)
         val messages = smsManager.divideMessage(body)
-        if (messages == null || messages.size < 1) {
+        if (messages.isNullOrEmpty()) {
             throw SmsException(ERROR_SENDING_MESSAGE)
         }
         // Actually send the sms
@@ -49,9 +49,12 @@ class SmsSender(val app: Application) {
 
     // Actually sending the message using SmsManager
     private fun sendInternal(
-        subId: Int, dest: String,
-        messages: ArrayList<String>, serviceCenter: String?,
-        requireDeliveryReport: Boolean, messageUri: Uri
+        subId: Int,
+        dest: String,
+        messages: ArrayList<String>,
+        serviceCenter: String?,
+        requireDeliveryReport: Boolean,
+        messageUri: Uri,
     ) {
         val smsManager = getSmsManager(subId)
         val messageCount = messages.size
