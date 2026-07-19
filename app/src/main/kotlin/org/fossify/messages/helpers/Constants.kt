@@ -49,6 +49,17 @@ const val CUSTOM_NOTIFICATIONS = "custom_notifications"
 const val IS_LAUNCHED_FROM_SHORTCUT = "is_launched_from_shortcut"
 const val KEEP_CONVERSATIONS_ARCHIVED = "keep_conversations_archived"
 
+const val WEBHOOK_ENABLED = "webhook_enabled"
+const val WEBHOOK_URL = "webhook_url"
+const val WEBHOOK_HTTP_METHOD = "webhook_http_method"
+const val WEBHOOK_FORWARD_INCOMING = "webhook_forward_incoming"
+const val WEBHOOK_FORWARD_OUTGOING = "webhook_forward_outgoing"
+const val WEBHOOK_BEARER_TOKEN = "webhook_bearer_token"
+
+const val WEBHOOK_METHOD_POST = 1
+const val WEBHOOK_METHOD_GET = 2
+const val WEBHOOK_METHOD_PUT = 3
+
 private const val PATH = "org.fossify.org.fossify.messages.action."
 const val MARK_AS_READ = PATH + "mark_as_read"
 const val REPLY = PATH + "reply"

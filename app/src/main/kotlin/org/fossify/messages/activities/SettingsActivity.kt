@@ -2,6 +2,7 @@ package org.fossify.messages.activities
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Patterns
 import androidx.activity.result.contract.ActivityResultContracts
 import org.fossify.commons.activities.ManageBlockedNumbersActivity
 import org.fossify.commons.dialogs.ChangeDateTimeFormatDialog
@@ -35,6 +36,7 @@ import org.fossify.commons.models.RadioItem
 import org.fossify.messages.R
 import org.fossify.messages.databinding.ActivitySettingsBinding
 import org.fossify.messages.dialogs.ExportMessagesDialog
+import org.fossify.messages.dialogs.WebhookInputDialog
 import org.fossify.messages.extensions.config
 import org.fossify.messages.extensions.emptyMessagesRecycleBin
 import org.fossify.messages.extensions.messagesDB
@@ -49,6 +51,10 @@ import org.fossify.messages.helpers.LOCK_SCREEN_NOTHING
 import org.fossify.messages.helpers.LOCK_SCREEN_SENDER
 import org.fossify.messages.helpers.LOCK_SCREEN_SENDER_MESSAGE
 import org.fossify.messages.helpers.MessagesImporter
+import org.fossify.messages.helpers.WEBHOOK_METHOD_GET
+import org.fossify.messages.helpers.WEBHOOK_METHOD_POST
+import org.fossify.messages.helpers.WEBHOOK_METHOD_PUT
+import org.fossify.messages.helpers.WebhookSender
 import org.fossify.messages.helpers.refreshConversations
 import java.util.Locale
 import kotlin.system.exitProcess
@@ -122,6 +128,7 @@ class SettingsActivity : SimpleActivity() {
         setupAppPasswordProtection()
         setupMessagesExport()
         setupMessagesImport()
+        setupWebhook()
         updateTextColors(binding.settingsNestedScrollview)
 
         if (
@@ -138,7 +145,8 @@ class SettingsActivity : SimpleActivity() {
             binding.settingsArchivedMessagesLabel,
             binding.settingsRecycleBinLabel,
             binding.settingsSecurityLabel,
-            binding.settingsMigratingLabel
+            binding.settingsMigratingLabel,
+            binding.settingsWebhookLabel
         ).forEach {
             it.setTextColor(getProperPrimaryColor())
         }
@@ -468,4 +476,151 @@ class SettingsActivity : SimpleActivity() {
             else -> R.string.mms_file_size_limit_none
         }
     )
+
+    private fun setupWebhook() = binding.apply {
+        setupWebhookEnabled()
+        setupWebhookUrl()
+        setupWebhookMethod()
+        setupWebhookForwardIncoming()
+        setupWebhookForwardOutgoing()
+        setupWebhookBearerToken()
+        setupWebhookTest()
+        updateWebhookSettingVisibility()
+    }
+
+    private fun updateWebhookSettingVisibility() = binding.apply {
+        val enabled = config.webhookEnabled
+        settingsWebhookUrlHolder.beVisibleIf(enabled)
+        settingsWebhookMethodHolder.beVisibleIf(enabled)
+        settingsWebhookForwardIncomingHolder.beVisibleIf(enabled)
+        settingsWebhookForwardOutgoingHolder.beVisibleIf(enabled)
+        settingsWebhookBearerTokenHolder.beVisibleIf(enabled)
+        settingsWebhookTestHolder.beVisibleIf(enabled)
+    }
+
+    private fun setupWebhookEnabled() = binding.apply {
+        settingsWebhookEnabled.isChecked = config.webhookEnabled
+        settingsWebhookEnabledHolder.setOnClickListener {
+            val turningOn = !settingsWebhookEnabled.isChecked
+            if (turningOn) {
+                when {
+                    config.webhookUrl.isBlank() -> {
+                        toast(R.string.webhook_url_required)
+                        return@setOnClickListener
+                    }
+
+                    !Patterns.WEB_URL.matcher(config.webhookUrl).matches() -> {
+                        toast(R.string.webhook_url_invalid)
+                        return@setOnClickListener
+                    }
+                }
+            }
+
+            settingsWebhookEnabled.toggle()
+            config.webhookEnabled = settingsWebhookEnabled.isChecked
+            updateWebhookSettingVisibility()
+        }
+    }
+
+    private fun setupWebhookUrl() = binding.apply {
+        settingsWebhookUrl.text = config.webhookUrl
+        settingsWebhookUrlHolder.setOnClickListener {
+            WebhookInputDialog(
+                activity = this@SettingsActivity,
+                titleId = R.string.webhook_url,
+                hintId = R.string.webhook_url,
+                prefill = config.webhookUrl,
+                isUrl = true
+            ) { newUrl ->
+                config.webhookUrl = newUrl
+                settingsWebhookUrl.text = newUrl
+                if (config.webhookEnabled && newUrl.isBlank()) {
+                    settingsWebhookEnabled.isChecked = false
+                    config.webhookEnabled = false
+                    updateWebhookSettingVisibility()
+                }
+            }
+        }
+    }
+
+    private fun setupWebhookMethod() = binding.apply {
+        settingsWebhookMethod.text = getWebhookMethodText(config.webhookHttpMethod)
+        settingsWebhookMethodHolder.setOnClickListener {
+            val items = arrayListOf(
+                RadioItem(WEBHOOK_METHOD_POST, getString(R.string.webhook_method_post)),
+                RadioItem(WEBHOOK_METHOD_GET, getString(R.string.webhook_method_get)),
+                RadioItem(WEBHOOK_METHOD_PUT, getString(R.string.webhook_method_put))
+            )
+
+            RadioGroupDialog(this@SettingsActivity, items, config.webhookHttpMethod) {
+                config.webhookHttpMethod = it as Int
+                settingsWebhookMethod.text = getWebhookMethodText(config.webhookHttpMethod)
+            }
+        }
+    }
+
+    private fun getWebhookMethodText(method: Int) = getString(
+        when (method) {
+            WEBHOOK_METHOD_GET -> R.string.webhook_method_get
+            WEBHOOK_METHOD_PUT -> R.string.webhook_method_put
+            else -> R.string.webhook_method_post
+        }
+    )
+
+    private fun setupWebhookForwardIncoming() = binding.apply {
+        settingsWebhookForwardIncoming.isChecked = config.webhookForwardIncoming
+        settingsWebhookForwardIncomingHolder.setOnClickListener {
+            settingsWebhookForwardIncoming.toggle()
+            config.webhookForwardIncoming = settingsWebhookForwardIncoming.isChecked
+        }
+    }
+
+    private fun setupWebhookForwardOutgoing() = binding.apply {
+        settingsWebhookForwardOutgoing.isChecked = config.webhookForwardOutgoing
+        settingsWebhookForwardOutgoingHolder.setOnClickListener {
+            settingsWebhookForwardOutgoing.toggle()
+            config.webhookForwardOutgoing = settingsWebhookForwardOutgoing.isChecked
+        }
+    }
+
+    private fun setupWebhookBearerToken() = binding.apply {
+        settingsWebhookBearerToken.text = getWebhookBearerTokenText()
+        settingsWebhookBearerTokenHolder.setOnClickListener {
+            WebhookInputDialog(
+                activity = this@SettingsActivity,
+                titleId = R.string.webhook_bearer_token,
+                hintId = R.string.webhook_bearer_token,
+                prefill = config.webhookBearerToken,
+                isUrl = false
+            ) { newToken ->
+                config.webhookBearerToken = newToken
+                settingsWebhookBearerToken.text = getWebhookBearerTokenText()
+            }
+        }
+    }
+
+    private fun getWebhookBearerTokenText(): String {
+        return if (config.webhookBearerToken.isNotEmpty()) {
+            "\u2022\u2022\u2022\u2022"
+        } else {
+            ""
+        }
+    }
+
+    private fun setupWebhookTest() = binding.apply {
+        settingsWebhookTestHolder.setOnClickListener {
+            when {
+                !config.webhookEnabled -> return@setOnClickListener
+                config.webhookUrl.isBlank() -> toast(R.string.webhook_url_required)
+                else -> {
+                    ensureBackgroundThread {
+                        val success = WebhookSender.sendTest(this@SettingsActivity)
+                        runOnUiThread {
+                            toast(if (success) R.string.webhook_test_sent else R.string.webhook_test_failed)
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

@@ -12,6 +12,9 @@ import org.fossify.commons.extensions.showErrorToast
 import org.fossify.commons.extensions.toast
 import org.fossify.messages.R
 import org.fossify.messages.extensions.deleteMessage
+import org.fossify.messages.extensions.getMMS
+import org.fossify.messages.helpers.WebhookEventType
+import org.fossify.messages.helpers.WebhookSender
 import org.fossify.messages.helpers.refreshConversations
 import org.fossify.messages.helpers.refreshMessages
 import java.io.File
@@ -54,6 +57,15 @@ class MmsSentReceiver : SendStatusReceiver() {
     override fun updateAppDatabase(context: Context, intent: Intent, receiverResultCode: Int) {
         refreshMessages()
         refreshConversations()
+
+        if (receiverResultCode == Activity.RESULT_OK) {
+            val uriString = intent.getStringExtra(EXTRA_CONTENT_URI)
+            if (uriString != null) {
+                context.getMMS(Uri.parse(uriString))?.let {
+                    WebhookSender.send(context, WebhookEventType.OUTGOING_MMS, it)
+                }
+            }
+        }
     }
 
     companion object {

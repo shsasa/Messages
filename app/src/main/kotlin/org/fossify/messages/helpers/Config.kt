@@ -151,4 +151,30 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getBoolean(KEEP_CONVERSATIONS_ARCHIVED, false)
         set(keepConversationsArchived) = prefs.edit()
             .putBoolean(KEEP_CONVERSATIONS_ARCHIVED, keepConversationsArchived).apply()
+
+    var webhookEnabled: Boolean
+        get() = prefs.getBoolean(WEBHOOK_ENABLED, false)
+        set(webhookEnabled) = prefs.edit().putBoolean(WEBHOOK_ENABLED, webhookEnabled).apply()
+
+    var webhookUrl: String
+        get() = prefs.getString(WEBHOOK_URL, "")!!
+        set(webhookUrl) = prefs.edit().putString(WEBHOOK_URL, webhookUrl).apply()
+
+    var webhookHttpMethod: Int
+        get() = prefs.getInt(WEBHOOK_HTTP_METHOD, WEBHOOK_METHOD_POST)
+        set(webhookHttpMethod) = prefs.edit().putInt(WEBHOOK_HTTP_METHOD, webhookHttpMethod).apply()
+
+    var webhookForwardIncoming: Boolean
+        get() = prefs.getBoolean(WEBHOOK_FORWARD_INCOMING, true)
+        set(webhookForwardIncoming) = prefs.edit()
+            .putBoolean(WEBHOOK_FORWARD_INCOMING, webhookForwardIncoming).apply()
+
+    var webhookForwardOutgoing: Boolean
+        get() = prefs.getBoolean(WEBHOOK_FORWARD_OUTGOING, true)
+        set(webhookForwardOutgoing) = prefs.edit()
+            .putBoolean(WEBHOOK_FORWARD_OUTGOING, webhookForwardOutgoing).apply()
+
+    var webhookBearerToken: String
+        get() = prefs.getString(WEBHOOK_BEARER_TOKEN, "")!!
+        set(webhookBearerToken) = prefs.edit().putString(WEBHOOK_BEARER_TOKEN, webhookBearerToken).apply()
 }

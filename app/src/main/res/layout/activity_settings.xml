@@ -495,6 +495,146 @@
                     android:text="@string/import_messages" />
 
             </RelativeLayout>
+
+            <include
+                android:id="@+id/settings_webhook_divider"
+                layout="@layout/divider" />
+
+            <TextView
+                android:id="@+id/settings_webhook_label"
+                style="@style/SettingsSectionLabelStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/webhook_forwarding" />
+
+            <RelativeLayout
+                android:id="@+id/settings_webhook_enabled_holder"
+                style="@style/SettingsHolderSwitchStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <org.fossify.commons.views.MyMaterialSwitch
+                    android:id="@+id/settings_webhook_enabled"
+                    style="@style/SettingsSwitchStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/enable_webhook_forwarding" />
+
+            </RelativeLayout>
+
+            <RelativeLayout
+                android:id="@+id/settings_webhook_url_holder"
+                style="@style/SettingsHolderTextViewStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <org.fossify.commons.views.MyTextView
+                    android:id="@+id/settings_webhook_url_label"
+                    style="@style/SettingsTextLabelStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/webhook_url" />
+
+                <org.fossify.commons.views.MyTextView
+                    android:id="@+id/settings_webhook_url"
+                    style="@style/SettingsTextValueStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@+id/settings_webhook_url_label"
+                    tools:text="https://example.com" />
+
+            </RelativeLayout>
+
+            <RelativeLayout
+                android:id="@+id/settings_webhook_method_holder"
+                style="@style/SettingsHolderTextViewStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <org.fossify.commons.views.MyTextView
+                    android:id="@+id/settings_webhook_method_label"
+                    style="@style/SettingsTextLabelStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/webhook_http_method" />
+
+                <org.fossify.commons.views.MyTextView
+                    android:id="@+id/settings_webhook_method"
+                    style="@style/SettingsTextValueStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@+id/settings_webhook_method_label"
+                    tools:text="POST" />
+
+            </RelativeLayout>
+
+            <RelativeLayout
+                android:id="@+id/settings_webhook_forward_incoming_holder"
+                style="@style/SettingsHolderSwitchStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <org.fossify.commons.views.MyMaterialSwitch
+                    android:id="@+id/settings_webhook_forward_incoming"
+                    style="@style/SettingsSwitchStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/webhook_forward_incoming" />
+
+            </RelativeLayout>
+
+            <RelativeLayout
+                android:id="@+id/settings_webhook_forward_outgoing_holder"
+                style="@style/SettingsHolderSwitchStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <org.fossify.commons.views.MyMaterialSwitch
+                    android:id="@+id/settings_webhook_forward_outgoing"
+                    style="@style/SettingsSwitchStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/webhook_forward_outgoing" />
+
+            </RelativeLayout>
+
+            <RelativeLayout
+                android:id="@+id/settings_webhook_bearer_token_holder"
+                style="@style/SettingsHolderTextViewStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <org.fossify.commons.views.MyTextView
+                    android:id="@+id/settings_webhook_bearer_token_label"
+                    style="@style/SettingsTextLabelStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/webhook_bearer_token" />
+
+                <org.fossify.commons.views.MyTextView
+                    android:id="@+id/settings_webhook_bearer_token"
+                    style="@style/SettingsTextValueStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@+id/settings_webhook_bearer_token_label"
+                    tools:text="None" />
+
+            </RelativeLayout>
+
+            <RelativeLayout
+                android:id="@+id/settings_webhook_test_holder"
+                style="@style/SettingsHolderTextViewOneLinerStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <org.fossify.commons.views.MyTextView
+                    android:id="@+id/settings_webhook_test"
+                    style="@style/SettingsTextLabelStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/send_test_webhook" />
+
+            </RelativeLayout>
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

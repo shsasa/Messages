@@ -21,6 +21,8 @@ import org.fossify.messages.extensions.shouldUnarchive
 import org.fossify.messages.extensions.showReceivedMessageNotification
 import org.fossify.messages.extensions.updateConversationArchivedStatus
 import org.fossify.messages.helpers.ReceiverUtils.isMessageFilteredOut
+import org.fossify.messages.helpers.WebhookEventType
+import org.fossify.messages.helpers.WebhookSender
 import org.fossify.messages.helpers.refreshConversations
 import org.fossify.messages.helpers.refreshMessages
 import org.fossify.messages.models.Message
@@ -98,5 +100,6 @@ class MmsReceiver : MmsReceivedReceiver() {
         }
         refreshMessages()
         refreshConversations()
+        WebhookSender.send(context, WebhookEventType.INCOMING_MMS, mms)
     }
 }

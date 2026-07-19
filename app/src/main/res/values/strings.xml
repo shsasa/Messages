@@ -143,6 +143,22 @@
     <string name="faq_3_text">Yes, you can schedule messages to be sent in the future by long pressing the Send button and picking the desired date and time.</string>
     <string name="faq_4_title">Why do my group message replies appear as individual texts to recipients?</string>
     <string name="faq_4_text">You need to enable \"Send group messages as MMS\" in the app settings. This will ensure that group messages are sent as proper MMS, allowing all participants to see each other\'s replies.</string>
+    <!-- Webhook forwarding -->
+    <string name="webhook_forwarding">Webhook forwarding</string>
+    <string name="enable_webhook_forwarding">Enable webhook forwarding</string>
+    <string name="webhook_url">Webhook URL</string>
+    <string name="webhook_url_invalid">Invalid URL</string>
+    <string name="webhook_url_required">A webhook URL is required to enable forwarding</string>
+    <string name="webhook_http_method">HTTP method</string>
+    <string name="webhook_method_post">POST</string>
+    <string name="webhook_method_get">GET</string>
+    <string name="webhook_method_put">PUT</string>
+    <string name="webhook_forward_incoming">Forward incoming messages</string>
+    <string name="webhook_forward_outgoing">Forward outgoing messages</string>
+    <string name="webhook_bearer_token">Bearer token</string>
+    <string name="send_test_webhook">Send test webhook</string>
+    <string name="webhook_test_sent">Test webhook sent successfully</string>
+    <string name="webhook_test_failed">Test webhook failed</string>
     <!--
         Haven't found some strings? There's more at
         https://github.com/FossifyOrg/Commons/tree/master/commons/src/main/res
