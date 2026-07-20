@@ -42,6 +42,10 @@ class WebhookInputDialog(
                             return@setOnClickListener
                         }
 
+                        if (isUrl && value.startsWith("http://", ignoreCase = true)) {
+                            activity.toast(R.string.webhook_http_insecure)
+                        }
+
                         callback(value)
                         alertDialog.dismiss()
                     }

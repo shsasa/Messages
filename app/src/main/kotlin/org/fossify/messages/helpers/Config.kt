@@ -165,12 +165,12 @@ class Config(context: Context) : BaseConfig(context) {
         set(webhookHttpMethod) = prefs.edit().putInt(WEBHOOK_HTTP_METHOD, webhookHttpMethod).apply()
 
     var webhookForwardIncoming: Boolean
-        get() = prefs.getBoolean(WEBHOOK_FORWARD_INCOMING, true)
+        get() = prefs.getBoolean(WEBHOOK_FORWARD_INCOMING, false)
         set(webhookForwardIncoming) = prefs.edit()
             .putBoolean(WEBHOOK_FORWARD_INCOMING, webhookForwardIncoming).apply()
 
     var webhookForwardOutgoing: Boolean
-        get() = prefs.getBoolean(WEBHOOK_FORWARD_OUTGOING, true)
+        get() = prefs.getBoolean(WEBHOOK_FORWARD_OUTGOING, false)
         set(webhookForwardOutgoing) = prefs.edit()
             .putBoolean(WEBHOOK_FORWARD_OUTGOING, webhookForwardOutgoing).apply()
 

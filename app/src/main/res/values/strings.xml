@@ -172,6 +172,10 @@
     <string name="webhook_duration">%d ms</string>
     <string name="send">Send</string>
     <string name="none">None</string>
+    <string name="webhook_http_insecure">HTTP is insecure. Only use it for local/private testing or trusted networks.</string>
+    <string name="webhook_protocol">Protocol</string>
+    <string name="webhook_protocol_http">HTTP (unencrypted, testing only)</string>
+    <string name="webhook_protocol_https">HTTPS (secure)</string>
     <!--
         Haven't found some strings? There's more at
         https://github.com/FossifyOrg/Commons/tree/master/commons/src/main/res

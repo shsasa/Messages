@@ -57,6 +57,9 @@ object WebhookSender {
         subId: Int,
         messageId: Long,
     ) {
+        if (!context.config.webhookEnabled) {
+            return
+        }
         ensureBackgroundThread {
             val contactName = context.getNameAndPhotoFromPhoneNumber(address).name
                 .takeIf { it != address }
@@ -77,6 +80,9 @@ object WebhookSender {
     }
 
     fun send(context: Context, payload: WebhookPayload) {
+        if (!context.config.webhookEnabled) {
+            return
+        }
         ensureBackgroundThread {
             sendInternal(context, payload)
         }
@@ -94,6 +100,9 @@ object WebhookSender {
     }
 
     fun executeTest(context: Context, request: WebhookTestResult): WebhookTestResult {
+        if (!context.config.webhookEnabled) {
+            return request.copy(errorMessage = "Webhook forwarding is disabled")
+        }
         return executeRequest(context, request)
     }
 

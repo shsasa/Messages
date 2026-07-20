@@ -15,6 +15,7 @@ class WebhookTestPreviewDialog(
 
     init {
         addProperty(R.string.webhook_url, result.url)
+        addProperty(R.string.webhook_protocol, getProtocolText(result.url))
         addProperty(R.string.webhook_http_method, result.method)
         addProperty(R.string.webhook_event_type, result.eventType)
         addProperty(R.string.webhook_headers, formatMap(result.headers) ?: activity.getString(R.string.none))
@@ -33,5 +34,13 @@ class WebhookTestPreviewDialog(
 
     private fun formatMap(map: Map<String, String>): String? {
         return map.takeIf { it.isNotEmpty() }?.entries?.joinToString("\n") { "${it.key}: ${it.value}" }
+    }
+
+    private fun getProtocolText(url: String): String {
+        return if (url.startsWith("https://", ignoreCase = true)) {
+            activity.getString(R.string.webhook_protocol_https)
+        } else {
+            activity.getString(R.string.webhook_protocol_http)
+        }
     }
 }

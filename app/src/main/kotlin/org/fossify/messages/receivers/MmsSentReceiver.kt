@@ -11,6 +11,7 @@ import android.widget.Toast
 import org.fossify.commons.extensions.showErrorToast
 import org.fossify.commons.extensions.toast
 import org.fossify.messages.R
+import org.fossify.messages.extensions.config
 import org.fossify.messages.extensions.deleteMessage
 import org.fossify.messages.extensions.getMMS
 import org.fossify.messages.helpers.WebhookEventType
@@ -58,7 +59,7 @@ class MmsSentReceiver : SendStatusReceiver() {
         refreshMessages()
         refreshConversations()
 
-        if (receiverResultCode == Activity.RESULT_OK) {
+        if (receiverResultCode == Activity.RESULT_OK && context.config.webhookEnabled) {
             val uriString = intent.getStringExtra(EXTRA_CONTENT_URI)
             if (uriString != null) {
                 context.getMMS(Uri.parse(uriString))?.let {
