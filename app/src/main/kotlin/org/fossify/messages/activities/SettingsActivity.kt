@@ -37,6 +37,8 @@ import org.fossify.messages.R
 import org.fossify.messages.databinding.ActivitySettingsBinding
 import org.fossify.messages.dialogs.ExportMessagesDialog
 import org.fossify.messages.dialogs.WebhookInputDialog
+import org.fossify.messages.dialogs.WebhookTestPreviewDialog
+import org.fossify.messages.dialogs.WebhookTestResultDialog
 import org.fossify.messages.extensions.config
 import org.fossify.messages.extensions.emptyMessagesRecycleBin
 import org.fossify.messages.extensions.messagesDB
@@ -627,10 +629,16 @@ class SettingsActivity : SimpleActivity() {
                 !config.webhookEnabled -> return@setOnClickListener
                 config.webhookUrl.trim().isBlank() -> toast(R.string.webhook_url_required)
                 else -> {
-                    ensureBackgroundThread {
-                        val success = WebhookSender.sendTest(this@SettingsActivity)
-                        runOnUiThread {
-                            toast(if (success) R.string.webhook_test_sent else R.string.webhook_test_failed)
+                    val preview = WebhookSender.previewTest(this@SettingsActivity)
+                    WebhookTestPreviewDialog(
+                        activity = this@SettingsActivity,
+                        result = preview
+                    ) { request ->
+                        ensureBackgroundThread {
+                            val result = WebhookSender.executeTest(this@SettingsActivity, request)
+                            runOnUiThread {
+                                WebhookTestResultDialog(this@SettingsActivity, result)
+                            }
                         }
                     }
                 }

@@ -6,16 +6,23 @@ import android.telephony.SubscriptionManager
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.messages.extensions.config
 import org.fossify.messages.extensions.getNameAndPhotoFromPhoneNumber
 import org.fossify.messages.models.Message
 import org.fossify.messages.models.WebhookPayload
+import org.fossify.messages.models.WebhookTestResult
 
 object WebhookSender {
     private const val TIMEOUT_MS = 15000
 
     private val json = Json { explicitNulls = false }
+
+    private val prettyJson = Json {
+        explicitNulls = false
+        prettyPrint = true
+    }
 
     fun send(context: Context, eventType: WebhookEventType, message: Message) {
         val address = message.senderPhoneNumber.ifEmpty {
@@ -69,7 +76,13 @@ object WebhookSender {
         }
     }
 
-    fun sendTest(context: Context): Boolean {
+    fun send(context: Context, payload: WebhookPayload) {
+        ensureBackgroundThread {
+            sendInternal(context, payload)
+        }
+    }
+
+    fun previewTest(context: Context): WebhookTestResult {
         val payload = WebhookPayload(
             eventType = WebhookEventType.TEST.value,
             address = "+1234567890",
@@ -77,13 +90,11 @@ object WebhookSender {
             timestamp = System.currentTimeMillis(),
             appPackage = context.packageName
         )
-        return sendInternal(context, payload)
+        return buildRequest(context, payload)
     }
 
-    fun send(context: Context, payload: WebhookPayload) {
-        ensureBackgroundThread {
-            sendInternal(context, payload)
-        }
+    fun executeTest(context: Context, request: WebhookTestResult): WebhookTestResult {
+        return executeRequest(context, request)
     }
 
     @Suppress("TooGenericExceptionCaught", "PrintStackTrace")
@@ -94,17 +105,60 @@ object WebhookSender {
             return false
         }
 
-        val body = json.encodeToString(WebhookPayload.serializer(), payload)
-        return try {
-            when (config.webhookHttpMethod) {
-                WEBHOOK_METHOD_GET -> executeRequest(context, buildGetUrl(urlString, payload), "GET", null)
-                WEBHOOK_METHOD_PUT -> executeRequest(context, URL(urlString), "PUT", body)
-                else -> executeRequest(context, URL(urlString), "POST", body)
+        val request = buildRequest(context, payload)
+        return executeRequest(context, request).isSuccess
+    }
+
+    private fun buildRequest(context: Context, payload: WebhookPayload): WebhookTestResult {
+        val config = context.config
+        val urlString = config.webhookUrl.trim()
+        val body = prettyJson.encodeToString(WebhookPayload.serializer(), payload)
+
+        return when (config.webhookHttpMethod) {
+            WEBHOOK_METHOD_GET -> {
+                val queryParams = payload.toMap()
+                    .filterValues { it != null }
+                    .mapValues { it.value.toString() }
+                val builder = Uri.parse(urlString).buildUpon()
+                queryParams.forEach { (key, value) ->
+                    builder.appendQueryParameter(key, value)
+                }
+                WebhookTestResult(
+                    url = builder.build().toString(),
+                    method = "GET",
+                    headers = buildHeaders(config, null),
+                    requestBody = null,
+                    queryParameters = queryParams,
+                    eventType = payload.eventType
+                )
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            false
+            WEBHOOK_METHOD_PUT -> WebhookTestResult(
+                url = urlString,
+                method = "PUT",
+                headers = buildHeaders(config, body),
+                requestBody = prettyPrintJson(body),
+                eventType = payload.eventType
+            )
+            else -> WebhookTestResult(
+                url = urlString,
+                method = "POST",
+                headers = buildHeaders(config, body),
+                requestBody = prettyPrintJson(body),
+                eventType = payload.eventType
+            )
         }
+    }
+
+    private fun buildHeaders(config: Config, body: String?): Map<String, String> {
+        val headers = mutableMapOf("Accept" to "application/json")
+        val token = config.webhookBearerToken
+        if (token.isNotBlank()) {
+            headers["Authorization"] = "Bearer $token"
+        }
+        if (body != null) {
+            headers["Content-Type"] = "application/json"
+        }
+        return headers
     }
 
     private fun shouldSendEvent(config: Config, payload: WebhookPayload): Boolean {
@@ -119,45 +173,58 @@ object WebhookSender {
         }
     }
 
-    private fun buildGetUrl(baseUrl: String, payload: WebhookPayload): URL {
-        val builder = Uri.parse(baseUrl).buildUpon()
-        payload.toMap().forEach { (key, value) ->
-            if (value != null) {
-                builder.appendQueryParameter(key, value.toString())
-            }
-        }
-        return URL(builder.build().toString())
-    }
-
     @Suppress("TooGenericExceptionCaught", "PrintStackTrace")
-    private fun executeRequest(context: Context, url: URL, method: String, body: String?): Boolean {
-        val config = context.config
+    private fun executeRequest(context: Context, request: WebhookTestResult): WebhookTestResult {
         var connection: HttpURLConnection? = null
+        val start = System.currentTimeMillis()
         return try {
-            connection = url.openConnection() as HttpURLConnection
+            connection = URL(request.url).openConnection() as HttpURLConnection
             connection.connectTimeout = TIMEOUT_MS
             connection.readTimeout = TIMEOUT_MS
-            connection.requestMethod = method
-            connection.setRequestProperty("Accept", "application/json")
-
-            val token = config.webhookBearerToken
-            if (token.isNotBlank()) {
-                connection.setRequestProperty("Authorization", "Bearer $token")
+            connection.requestMethod = request.method
+            request.headers.forEach { (key, value) ->
+                connection.setRequestProperty(key, value)
             }
 
-            if (body != null) {
-                connection.setRequestProperty("Content-Type", "application/json")
+            if (request.requestBody != null) {
                 connection.doOutput = true
-                connection.outputStream.use { it.write(body.toByteArray()) }
+                connection.outputStream.use { it.write(request.requestBody.toByteArray()) }
             }
 
             val responseCode = connection.responseCode
-            responseCode in HttpURLConnection.HTTP_OK until HttpURLConnection.HTTP_MULT_CHOICE
+            val responseHeaders = connection.headerFields
+                ?.filter { it.key != null }
+                ?.mapValues { it.value?.joinToString(", ") ?: "" }
+                ?: emptyMap()
+            val stream = if (responseCode >= HttpURLConnection.HTTP_BAD_REQUEST) connection.errorStream else connection.inputStream
+            val responseBody = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: ""
+            val duration = System.currentTimeMillis() - start
+
+            request.copy(
+                responseCode = responseCode,
+                responseHeaders = responseHeaders,
+                responseBody = prettyPrintJson(responseBody),
+                durationMs = duration,
+                isSuccess = responseCode in HttpURLConnection.HTTP_OK until HttpURLConnection.HTTP_MULT_CHOICE
+            )
         } catch (e: Exception) {
             e.printStackTrace()
-            false
+            request.copy(
+                errorMessage = e.message ?: e.toString(),
+                durationMs = System.currentTimeMillis() - start
+            )
         } finally {
             connection?.disconnect()
+        }
+    }
+
+    private fun prettyPrintJson(raw: String): String {
+        if (raw.isBlank()) return raw
+        return try {
+            val element: JsonElement = json.parseToJsonElement(raw)
+            prettyJson.encodeToString(JsonElement.serializer(), element)
+        } catch (e: Exception) {
+            raw
         }
     }
 
