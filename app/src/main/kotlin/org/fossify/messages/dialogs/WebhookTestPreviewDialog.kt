@@ -20,7 +20,10 @@ class WebhookTestPreviewDialog(
         addProperty(R.string.webhook_event_type, result.eventType)
         addProperty(R.string.webhook_headers, formatMap(result.headers) ?: activity.getString(R.string.none))
         if (result.queryParameters != null) {
-            addProperty(R.string.webhook_query_parameters, formatMap(result.queryParameters) ?: activity.getString(R.string.none))
+            addProperty(
+                R.string.webhook_query_parameters,
+                formatMap(result.queryParameters) ?: activity.getString(R.string.none)
+            )
         }
         addProperty(R.string.webhook_request_body, result.requestBody ?: activity.getString(R.string.none))
 

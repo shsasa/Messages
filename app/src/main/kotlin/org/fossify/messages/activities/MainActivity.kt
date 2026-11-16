@@ -83,7 +83,9 @@ class MainActivity : SimpleActivity() {
     private var lastSearchedText = ""
     private var bus: EventBus? = null
 
-    private val defaultSmsLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+    private val defaultSmsLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
         if (result.resultCode == RESULT_OK) {
             askPermissions()
         } else {

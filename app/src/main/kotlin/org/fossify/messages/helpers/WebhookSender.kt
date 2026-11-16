@@ -14,6 +14,7 @@ import org.fossify.messages.models.Message
 import org.fossify.messages.models.WebhookPayload
 import org.fossify.messages.models.WebhookTestResult
 
+@Suppress("TooManyFunctions")
 object WebhookSender {
     private const val TIMEOUT_MS = 15000
 
@@ -103,7 +104,7 @@ object WebhookSender {
         if (!context.config.webhookEnabled) {
             return request.copy(errorMessage = "Webhook forwarding is disabled")
         }
-        return executeRequest(context, request)
+        return executeRequest(request)
     }
 
     @Suppress("TooGenericExceptionCaught", "PrintStackTrace")
@@ -115,7 +116,7 @@ object WebhookSender {
         }
 
         val request = buildRequest(context, payload)
-        return executeRequest(context, request).isSuccess
+        return executeRequest(request).isSuccess
     }
 
     private fun buildRequest(context: Context, payload: WebhookPayload): WebhookTestResult {
@@ -183,7 +184,7 @@ object WebhookSender {
     }
 
     @Suppress("TooGenericExceptionCaught", "PrintStackTrace")
-    private fun executeRequest(context: Context, request: WebhookTestResult): WebhookTestResult {
+    private fun executeRequest(request: WebhookTestResult): WebhookTestResult {
         var connection: HttpURLConnection? = null
         val start = System.currentTimeMillis()
         return try {
@@ -205,7 +206,11 @@ object WebhookSender {
                 ?.filter { it.key != null }
                 ?.mapValues { it.value?.joinToString(", ") ?: "" }
                 ?: emptyMap()
-            val stream = if (responseCode >= HttpURLConnection.HTTP_BAD_REQUEST) connection.errorStream else connection.inputStream
+            val stream = if (responseCode >= HttpURLConnection.HTTP_BAD_REQUEST) {
+                connection.errorStream
+            } else {
+                connection.inputStream
+            }
             val responseBody = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: ""
             val duration = System.currentTimeMillis() - start
 
@@ -232,7 +237,7 @@ object WebhookSender {
         return try {
             val element: JsonElement = json.parseToJsonElement(raw)
             prettyJson.encodeToString(JsonElement.serializer(), element)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             raw
         }
     }
