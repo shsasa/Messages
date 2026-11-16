@@ -86,6 +86,7 @@ class MmsReceiver : MmsReceivedReceiver() {
 
         context.showReceivedMessageNotification(
             messageId = mms.id,
+            isMms = true,
             address = address,
             senderName = senderName,
             body = mms.body,

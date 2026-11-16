@@ -206,7 +206,7 @@
 
         <receiver
             android:name=".receivers.MmsSentReceiver"
-            android:exported="true"
+            android:exported="false"
             android:taskAffinity="com.klinker.android.messaging.MMS_SENT" />
 
         <receiver
@@ -217,29 +217,17 @@
         <receiver
             android:name=".receivers.MarkAsReadReceiver"
             android:enabled="true"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="org.fossify.messages.action.mark_as_read" />
-            </intent-filter>
-        </receiver>
+            android:exported="false" />
 
         <receiver
             android:name=".receivers.DirectReplyReceiver"
             android:enabled="true"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="org.fossify.messages.action.reply" />
-            </intent-filter>
-        </receiver>
+            android:exported="false" />
 
         <receiver
             android:name=".receivers.DeleteSmsReceiver"
             android:enabled="true"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="org.fossify.messages.action.delete" />
-            </intent-filter>
-        </receiver>
+            android:exported="false" />
 
         <receiver
             android:name=".receivers.ScheduledMessageReceiver"

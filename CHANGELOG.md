@@ -6,6 +6,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.2] - 2026-10-21
+### Changed
+- Updated translations
+
+## [1.10.1] - 2026-10-10
+### Changed
+- Updated translations
+
+### Fixed
+- Fixed startup crash on Android 11 and below
+
+## [1.10.0] - 2026-10-10
+### Added
+- Added inline audio player for MMS attachments ([#261])
+
+### Changed
+- Improved error messages when a message fails to send ([#315])
+- Updated translations
+
+### Fixed
+- Fixed exposed action receivers for security ([#834])
+- Fixed group message creation on Xiaomi devices ([#41])
+- Fixed incorrect SMS/MMS deletion from notifications in rare cases
+- Fixed MMS images stuck on "Sending" when sent together ([#185])
+- Partially fixed MMS image sending failures ([#45])
+
+## [1.9.1] - 2026-07-19
+### Changed
+- Updated translations
+
+### Fixed
+- Fixed missing private contact names in message list and threads ([#829])
+
 ## [1.9.0] - 2026-07-12
 ### Added
 - Added a group message format choice on the first group send ([#52])
@@ -217,6 +250,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release
 
 [#13]: https://github.com/FossifyOrg/Messages/issues/13
+[#41]: https://github.com/FossifyOrg/Messages/issues/41
 [#45]: https://github.com/FossifyOrg/Messages/issues/45
 [#52]: https://github.com/FossifyOrg/Messages/issues/52
 [#70]: https://github.com/FossifyOrg/Messages/issues/70
@@ -230,11 +264,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#165]: https://github.com/FossifyOrg/Messages/issues/165
 [#177]: https://github.com/FossifyOrg/Messages/issues/177
 [#180]: https://github.com/FossifyOrg/Messages/issues/180
+[#185]: https://github.com/FossifyOrg/Messages/issues/185
 [#209]: https://github.com/FossifyOrg/Messages/issues/209
 [#217]: https://github.com/FossifyOrg/Messages/issues/217
 [#225]: https://github.com/FossifyOrg/Messages/issues/225
 [#234]: https://github.com/FossifyOrg/Messages/issues/234
 [#243]: https://github.com/FossifyOrg/Messages/issues/243
+[#261]: https://github.com/FossifyOrg/Messages/issues/261
 [#262]: https://github.com/FossifyOrg/Messages/issues/262
 [#264]: https://github.com/FossifyOrg/Messages/issues/264
 [#274]: https://github.com/FossifyOrg/Messages/issues/274
@@ -245,6 +281,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#290]: https://github.com/FossifyOrg/Messages/issues/290
 [#294]: https://github.com/FossifyOrg/Messages/issues/294
 [#309]: https://github.com/FossifyOrg/Messages/issues/309
+[#315]: https://github.com/FossifyOrg/Messages/issues/315
 [#334]: https://github.com/FossifyOrg/Messages/issues/334
 [#349]: https://github.com/FossifyOrg/Messages/issues/349
 [#350]: https://github.com/FossifyOrg/Messages/issues/350
@@ -263,8 +300,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#644]: https://github.com/FossifyOrg/Messages/issues/644
 [#651]: https://github.com/FossifyOrg/Messages/issues/651
 [#713]: https://github.com/FossifyOrg/Messages/issues/713
+[#829]: https://github.com/FossifyOrg/Messages/issues/829
+[#834]: https://github.com/FossifyOrg/Messages/issues/834
 
-[Unreleased]: https://github.com/FossifyOrg/Messages/compare/1.9.0...HEAD
+[Unreleased]: https://github.com/FossifyOrg/Messages/compare/1.10.2...HEAD
+[1.10.2]: https://github.com/FossifyOrg/Messages/compare/1.10.1...1.10.2
+[1.10.1]: https://github.com/FossifyOrg/Messages/compare/1.10.0...1.10.1
+[1.10.0]: https://github.com/FossifyOrg/Messages/compare/1.9.1...1.10.0
+[1.9.1]: https://github.com/FossifyOrg/Messages/compare/1.9.0...1.9.1
 [1.9.0]: https://github.com/FossifyOrg/Messages/compare/1.8.1...1.9.0
 [1.8.1]: https://github.com/FossifyOrg/Messages/compare/1.8.0...1.8.1
 [1.8.0]: https://github.com/FossifyOrg/Messages/compare/1.7.0...1.8.0

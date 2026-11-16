@@ -51,11 +51,9 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import org.fossify.commons.dialogs.ConfirmationDialog
-import org.fossify.commons.dialogs.FeatureLockedDialog
 import org.fossify.commons.dialogs.PermissionRequiredDialog
 import org.fossify.commons.dialogs.RadioGroupDialog
 import org.fossify.commons.extensions.addBlockedNumber
-import org.fossify.commons.extensions.addLockedLabelIfNeeded
 import org.fossify.commons.extensions.applyColorFilter
 import org.fossify.commons.extensions.beGone
 import org.fossify.commons.extensions.beVisible
@@ -76,7 +74,6 @@ import org.fossify.commons.extensions.getTextSize
 import org.fossify.commons.extensions.hideKeyboard
 import org.fossify.commons.extensions.insetsController
 import org.fossify.commons.extensions.isDynamicTheme
-import org.fossify.commons.extensions.isOrWasThankYouInstalled
 import org.fossify.commons.extensions.isVisible
 import org.fossify.commons.extensions.launchActivityIntent
 import org.fossify.commons.extensions.maybeShowNumberPickerDialog
@@ -158,6 +155,7 @@ import org.fossify.messages.extensions.toSortedMessages
 import org.fossify.messages.extensions.updateConversationArchivedStatus
 import org.fossify.messages.extensions.updateLastConversationMessage
 import org.fossify.messages.extensions.updateScheduledMessagesThreadId
+import org.fossify.messages.helpers.AudioPlayerManager
 import org.fossify.messages.helpers.CAPTURE_AUDIO_INTENT
 import org.fossify.messages.helpers.CAPTURE_PHOTO_INTENT
 import org.fossify.messages.helpers.CAPTURE_VIDEO_INTENT
@@ -323,6 +321,7 @@ class ThreadActivity : SimpleActivity() {
 
     override fun onStop() {
         super.onStop()
+        AudioPlayerManager.release()
         saveDraftMessage()
     }
 
@@ -366,7 +365,7 @@ class ThreadActivity : SimpleActivity() {
                 participants.size > 1 && conversation != null && !isRecycleBin
             findItem(R.id.conversation_details).isVisible = conversation != null && !isRecycleBin
             findItem(R.id.block_number).title =
-                addLockedLabelIfNeeded(org.fossify.commons.R.string.block_number)
+                getString(org.fossify.commons.R.string.block_number)
             findItem(R.id.block_number).isVisible = !isRecycleBin
             findItem(R.id.dial_number).isVisible =
                 participants.size == 1 && !isSpecialNumber() && !isRecycleBin
@@ -390,7 +389,7 @@ class ThreadActivity : SimpleActivity() {
 
     private fun handleMenuItemAction(menuItem: MenuItem): Boolean {
         when (menuItem.itemId) {
-            R.id.block_number -> tryBlocking()
+            R.id.block_number -> blockNumber()
             R.id.delete -> askConfirmDelete()
             R.id.restore -> askConfirmRestoreAll()
             R.id.archive -> archiveConversation()
@@ -482,8 +481,8 @@ class ThreadActivity : SimpleActivity() {
             finish()
             return
         }
+        val privateCursor = getMyContactsCursor(favoritesOnly = false, withPhoneNumbersOnly = true)
         ensureBackgroundThread {
-            val privateCursor = getMyContactsCursor(favoritesOnly = false, withPhoneNumbersOnly = true)
             privateContacts = MyContactsContentProvider.getSimpleContacts(this, privateCursor)
 
             val cachedMessagesCode = messages.hashCode()
@@ -534,24 +533,26 @@ class ThreadActivity : SimpleActivity() {
 
             if (participants.isEmpty()) {
                 val name = intent.getStringExtra(THREAD_TITLE) ?: ""
-                val number = intent.getStringExtra(THREAD_NUMBER)
-                if (number == null) {
+                val numbers = getPhoneNumbersFromIntent()
+                if (numbers.isEmpty()) {
                     toast(org.fossify.commons.R.string.unknown_error_occurred)
                     finish()
                     return@ensureBackgroundThread
                 }
 
-                val phoneNumber = PhoneNumber(number, 0, "", number)
-                val contact = SimpleContact(
-                    rawId = 0,
-                    contactId = 0,
-                    name = name,
-                    photoUri = "",
-                    phoneNumbers = arrayListOf(phoneNumber),
-                    birthdays = ArrayList(),
-                    anniversaries = ArrayList()
-                )
-                participants.add(contact)
+                numbers.forEach { number ->
+                    val phoneNumber = PhoneNumber(number, 0, "", number)
+                    val contact = SimpleContact(
+                        rawId = number.hashCode(),
+                        contactId = number.hashCode(),
+                        name = if (numbers.size == 1) name.ifBlank { number } else number,
+                        photoUri = "",
+                        phoneNumbers = arrayListOf(phoneNumber),
+                        birthdays = ArrayList(),
+                        anniversaries = ArrayList()
+                    )
+                    participants.add(contact)
+                }
             }
 
             if (!isRecycleBin) {
@@ -709,6 +710,9 @@ class ThreadActivity : SimpleActivity() {
         val hasMessages = messages.isNotEmpty()
 
         runOnUiThread {
+            messagesToRemove.forEach { message ->
+                message.attachment?.attachments?.forEach { AudioPlayerManager.release(it.getUri()) }
+            }
             threadItems = latestThreadItems
             if (!hasMessages) {
                 finish()
@@ -931,6 +935,7 @@ class ThreadActivity : SimpleActivity() {
                     hideKeyboard()
                     Intent(this@ThreadActivity, ThreadActivity::class.java).apply {
                         putExtra(THREAD_ID, newThreadId)
+                        putExtra(THREAD_NUMBER, Gson().toJson(numbers))
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                         startActivity(this)
                     }
@@ -1147,14 +1152,6 @@ class ThreadActivity : SimpleActivity() {
         }
 
         return userPreferredSimIdx ?: senderPreferredSimIdx ?: systemPreferredSimIdx ?: 0
-    }
-
-    private fun tryBlocking() {
-        if (isOrWasThankYouInstalled()) {
-            blockNumber()
-        } else {
-            FeatureLockedDialog(this) { }
-        }
     }
 
     private fun blockNumber() {
@@ -1967,6 +1964,9 @@ class ThreadActivity : SimpleActivity() {
     }
 
     private fun cancelScheduledMessageAndRefresh(messageId: Long) {
+        messages.firstOrNull { it.id == messageId && it.isScheduled }?.attachment?.attachments?.forEach {
+            AudioPlayerManager.release(it.getUri())
+        }
         ensureBackgroundThread {
             deleteScheduledMessage(messageId)
             cancelScheduleSendPendingIntent(messageId)

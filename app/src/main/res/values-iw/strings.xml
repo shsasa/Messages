@@ -83,7 +83,6 @@
     <string name="archive_confirmation">האם אתה בטוח שברצונך להעביר שיחה %s לארכיון?</string>
     <string name="unable_to_save_message">לא ניתן לשמור הודעה במסד הנתונים של הטלפוניה</string>
     <string name="error_service_is_unavailable">לא ניתן לשלוח הודעה, השירות לא זמין</string>
-    <string name="sim_card_not_available">כרטיס SIM אינו זמין</string>
     <string name="invalid_short_code">לא יכול להגיב לקודים קצרים כמו זה</string>
     <string name="faq_3_title">האם היישום תומך בהודעות מתוזמנות?</string>
     <string name="send_now">שליחה כעת</string>
@@ -107,10 +106,8 @@
     <string name="manage_blocked_keywords">נהל מילות מפתח חסומות</string>
     <string name="not_blocking_keywords">לא חסמת מילות מפתח. אתה יכול להוסיף כאן מילות מפתח כדי לחסום ההודעות המכילות אותן.</string>
     <string name="send_on_enter">שלח הודעה בלחיצה על אנטר</string>
-    <string name="unknown_error_occurred_sending_message">לא ניתן לשלוח הודעה, קוד שגיאה: %d</string>
     <string name="empty_destination_address">לא ניתן לשלוח הודעה למספר ריק</string>
     <string name="error_radio_turned_off">לא ניתן לשלוח הודעה, הרדיו כבוי</string>
-    <string name="carrier_send_error">לא ניתן לשלוח הודעה, שגיאת ספק</string>
     <string name="attachment_sized_exceeds_max_limit">גודל הקובץ המצורף חורג ממגבלת ה-MMS המקסימלית</string>
     <string name="couldnt_download_mms">לא ניתן היה להוריד MMS</string>
     <string name="enable_custom_notifications">לאפשר התראות מותאמות אישית</string>
@@ -126,4 +123,8 @@
     <string name="keep_conversations_archived">שמירת השיחות בארכיון</string>
     <string name="faq_4_title">מדוע תשובות להודעות הקבוצתיות שלי מופיעות כהודעות טקסט אישיות לנמענים?</string>
     <string name="faq_4_text">עליך להפעיל את האפשרות \"שליחת הודעות קבוצתיות כ-MMS\" בהגדרות האפליקציה. פעולה זו תבטיח שהודעות הקבוצה יישלחו כ-MMS תקינות, כך שכל המשתתפים יוכלו לראות את תשובותיהם של אחרים.</string>
+    <string name="separate_messages">שלח בנפרד</string>
+    <string name="send_group_message">תבנית הודעה קבוצתית</string>
+    <string name="group_message_send_description">MMS קבוצתי משאיר את כל התגובות בשיחה אחת, אבל אולי יחויב ע\"י המפעיל. שליחה בנפרד שולחת הודעה אחת לכל בן-אדם. ניתן לשנות הגדרה זו אח\"כ בהגדרות היישומון.</string>
+    <string name="group_mms">MMS קבוצתי</string>
 </resources>

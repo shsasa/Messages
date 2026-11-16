@@ -311,8 +311,8 @@ class MainActivity : SimpleActivity() {
     }
 
     private fun getNewConversations(cachedConversations: ArrayList<Conversation>) {
+        val privateCursor = getMyContactsCursor(favoritesOnly = false, withPhoneNumbersOnly = true)
         ensureBackgroundThread {
-            val privateCursor = getMyContactsCursor(favoritesOnly = false, withPhoneNumbersOnly = true)
             val privateContacts = MyContactsContentProvider.getSimpleContacts(this, privateCursor)
             val conversations = getConversations(privateContacts = privateContacts)
 
@@ -647,7 +647,7 @@ class MainActivity : SimpleActivity() {
             )
         )
 
-        if (!resources.getBoolean(org.fossify.commons.R.bool.hide_google_relations)) {
+        if (resources.getBoolean(org.fossify.commons.R.bool.is_google_play_build)) {
             faqItems.add(
                 FAQItem(
                     title = org.fossify.commons.R.string.faq_2_title_commons,

@@ -59,7 +59,7 @@
     <string name="empty_archive_confirmation">Tem a certeza de que pretende limpar o arquivo\? Todas as conversas arquivadas serão eliminadas.</string>
     <string name="restore">Restaurar</string>
     <string name="restore_all_messages">Restaurar todas as mensagens</string>
-    <string name="empty_recycle_bin_messages_confirmation">Tem a certeza de que pretende esvaziar a reciclagem\? As mensagens não poderão ser recuperadas.</string>
+    <string name="empty_recycle_bin_messages_confirmation">Tem a certeza de que pretende limpar a reciclagem? As mensagens não poderão ser recuperadas.</string>
     <string name="skip_the_recycle_bin_messages">Eliminar mensagens sem as colocar na reciclagem</string>
     <string name="delete_whole_conversation_confirmation">Tem a certeza de que pretende eliminar todas as mensagens desta conversa?</string>
     <string name="archive_confirmation">Tem a certeza de que pretende arquivar %s\?</string>
@@ -100,15 +100,12 @@
     <string name="import_mms">Importar MMS</string>
     <string name="no_option_selected">Tem que selecionar, pelo menos, 1 item</string>
     <string name="empty_destination_address">Não pode enviar mensagens se não existir um destinatário</string>
-    <string name="unable_to_save_message">Não foi possível guardar a mensagem na base de dados do telefone</string>
+    <string name="unable_to_save_message">Não foi possível guardar a mensagem</string>
     <string name="error_service_is_unavailable">Serviço indisponível. Não pode enviar a mensagem</string>
-    <string name="error_radio_turned_off">Rádio desligado. Não pode enviar a mensagem</string>
-    <string name="carrier_send_error">Erro da operadora. Não pode enviar a mensagem</string>
-    <string name="unknown_error_occurred_sending_message">Não foi possível enviar a mensagem. Erro: %d</string>
+    <string name="error_radio_turned_off">Mensagem não enviada. Verifique se o modo avião está ativado.</string>
     <string name="invalid_short_code">Não é possível responder a códigos deste tipo</string>
     <string name="invalid_short_code_desc">Apenas é possível responder a códigos curtos com números como, por exemplo, e não a códigos que combinem letras e números com, por exemplo, \"AB-CD0\".</string>
     <string name="attachment_sized_exceeds_max_limit">O anexo excede o tamanho máximo permitido para MMS</string>
-    <string name="sim_card_not_available">Cartão SIM não encontrado</string>
     <string name="couldnt_download_mms">Não foi possível descarregar a MMS</string>
     <string name="faq_1_title">Porque é que a aplicação requer acesso à Internet\?</string>
     <string name="faq_1_text">Infelizmente, é a única forma de poder enviar anexos MMS. Não ter a capacidade de enviar MMS representaria uma enorme desvantagem comparativamente a outras aplicações e foi por isso que tomámos esta decisão. Mas, como habitualmente, a aplicação não tem anúncios, não rastreia os utilizadores nem recolhe dados pessoais. Esta permissão apenas é necessária para enviar MMS.</string>
@@ -124,4 +121,14 @@
     <string name="import_blocked_keywords">Importar palavras-chave</string>
     <string name="keep_conversations_archived">Manter conversas arquivadas</string>
     <string name="faq_4_title">Por que as minhas respostas a mensagens em grupo aparecem como mensagens individuais para os destinatários?</string>
+    <string name="send_group_message">Formato da mensagem de grupo</string>
+    <string name="group_message_send_description">As mensagens de grupo mantêm as respostas em apenas uma conversa mas podem ser aplicadas taxas pela operadora. O envio em separado envia a mesma mensagem para cada um dos destinatários. Pode alterar a opção nas definições.</string>
+    <string name="group_mms">MMS de grupo</string>
+    <string name="separate_messages">Enviar em separado</string>
+    <string name="sms_error_radio_unavailable">Mensagem não enviada. Serviço móvel não disponível.</string>
+    <string name="sms_error_encoding">Mensagem não enviada. Não foi possível processar o texto.</string>
+    <string name="sms_error_limit_exceeded">Mensagem não enviada. Atingiu o limite de mensagens.</string>
+    <string name="sms_error_fixed_dialing">Mensagem não enviada. Bloqueada pelos números fixos de ligação.</string>
+    <string name="sms_error_short_code_not_allowed">Mensagem não enviada. Verifique o acesso de envio Premium.</string>
+    <string name="sms_error_network_rejected">Mensagem não enviada. Rejeitada pelo serviço de rede.</string>
 </resources>
