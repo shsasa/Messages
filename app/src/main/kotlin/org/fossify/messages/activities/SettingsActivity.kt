@@ -2,7 +2,6 @@ package org.fossify.messages.activities
 
 import android.content.Intent
 import android.os.Bundle
-import android.util.Patterns
 import androidx.activity.result.contract.ActivityResultContracts
 import org.fossify.commons.activities.ManageBlockedNumbersActivity
 import org.fossify.commons.dialogs.ChangeDateTimeFormatDialog
@@ -33,9 +32,6 @@ import org.fossify.commons.models.RadioItem
 import org.fossify.messages.R
 import org.fossify.messages.databinding.ActivitySettingsBinding
 import org.fossify.messages.dialogs.ExportMessagesDialog
-import org.fossify.messages.dialogs.WebhookInputDialog
-import org.fossify.messages.dialogs.WebhookTestPreviewDialog
-import org.fossify.messages.dialogs.WebhookTestResultDialog
 import org.fossify.messages.extensions.config
 import org.fossify.messages.extensions.emptyMessagesRecycleBin
 import org.fossify.messages.extensions.messagesDB
@@ -50,10 +46,7 @@ import org.fossify.messages.helpers.LOCK_SCREEN_NOTHING
 import org.fossify.messages.helpers.LOCK_SCREEN_SENDER
 import org.fossify.messages.helpers.LOCK_SCREEN_SENDER_MESSAGE
 import org.fossify.messages.helpers.MessagesImporter
-import org.fossify.messages.helpers.WEBHOOK_METHOD_GET
-import org.fossify.messages.helpers.WEBHOOK_METHOD_POST
-import org.fossify.messages.helpers.WEBHOOK_METHOD_PUT
-import org.fossify.messages.helpers.WebhookSender
+import org.fossify.messages.helpers.WebhookStatus
 import org.fossify.messages.helpers.refreshConversations
 import java.util.Locale
 import kotlin.system.exitProcess
@@ -469,169 +462,9 @@ class SettingsActivity : SimpleActivity() {
     )
 
     private fun setupWebhook() = binding.apply {
-        setupWebhookEnabled()
-        setupWebhookUrl()
-        setupWebhookMethod()
-        setupWebhookForwardIncoming()
-        setupWebhookForwardOutgoing()
-        setupWebhookBearerToken()
-        setupWebhookTest()
-        updateWebhookSettingVisibility()
-    }
-
-    private fun updateWebhookSettingVisibility() = binding.apply {
-        settingsWebhookTestHolder.beVisibleIf(config.webhookEnabled)
-    }
-
-    private fun setupWebhookEnabled() = binding.apply {
-        settingsWebhookEnabled.isChecked = config.webhookEnabled
-        settingsWebhookEnabledHolder.setOnClickListener {
-            val turningOn = !settingsWebhookEnabled.isChecked
-            if (!turningOn) {
-                settingsWebhookEnabled.isChecked = false
-                config.webhookEnabled = false
-                updateWebhookSettingVisibility()
-                return@setOnClickListener
-            }
-
-            val url = config.webhookUrl.trim()
-            if (url.isNotBlank() && Patterns.WEB_URL.matcher(url).matches()) {
-                enableWebhook()
-            } else {
-                askForWebhookUrlAndEnable(url)
-            }
-        }
-    }
-
-    private fun enableWebhook() {
-        binding.settingsWebhookEnabled.isChecked = true
-        config.webhookEnabled = true
-        updateWebhookSettingVisibility()
-    }
-
-    private fun askForWebhookUrlAndEnable(prefill: String) {
-        WebhookInputDialog(
-            activity = this,
-            titleId = R.string.webhook_url,
-            hintId = R.string.webhook_url,
-            prefill = prefill,
-            isUrl = true
-        ) { newUrl ->
-            val trimmed = newUrl.trim()
-            config.webhookUrl = trimmed
-            binding.settingsWebhookUrl.text = trimmed
-            if (trimmed.isNotBlank() && Patterns.WEB_URL.matcher(trimmed).matches()) {
-                enableWebhook()
-            }
-        }
-    }
-
-    private fun setupWebhookUrl() = binding.apply {
-        settingsWebhookUrl.text = config.webhookUrl.trim()
-        settingsWebhookUrlHolder.setOnClickListener {
-            WebhookInputDialog(
-                activity = this@SettingsActivity,
-                titleId = R.string.webhook_url,
-                hintId = R.string.webhook_url,
-                prefill = config.webhookUrl.trim(),
-                isUrl = true
-            ) { newUrl ->
-                val trimmed = newUrl.trim()
-                config.webhookUrl = trimmed
-                settingsWebhookUrl.text = trimmed
-                if (config.webhookEnabled && trimmed.isBlank()) {
-                    settingsWebhookEnabled.isChecked = false
-                    config.webhookEnabled = false
-                    updateWebhookSettingVisibility()
-                }
-            }
-        }
-    }
-
-    private fun setupWebhookMethod() = binding.apply {
-        settingsWebhookMethod.text = getWebhookMethodText(config.webhookHttpMethod)
-        settingsWebhookMethodHolder.setOnClickListener {
-            val items = arrayListOf(
-                RadioItem(WEBHOOK_METHOD_POST, getString(R.string.webhook_method_post)),
-                RadioItem(WEBHOOK_METHOD_GET, getString(R.string.webhook_method_get)),
-                RadioItem(WEBHOOK_METHOD_PUT, getString(R.string.webhook_method_put))
-            )
-
-            RadioGroupDialog(this@SettingsActivity, items, config.webhookHttpMethod) {
-                config.webhookHttpMethod = it as Int
-                settingsWebhookMethod.text = getWebhookMethodText(config.webhookHttpMethod)
-            }
-        }
-    }
-
-    private fun getWebhookMethodText(method: Int) = getString(
-        when (method) {
-            WEBHOOK_METHOD_GET -> R.string.webhook_method_get
-            WEBHOOK_METHOD_PUT -> R.string.webhook_method_put
-            else -> R.string.webhook_method_post
-        }
-    )
-
-    private fun setupWebhookForwardIncoming() = binding.apply {
-        settingsWebhookForwardIncoming.isChecked = config.webhookForwardIncoming
-        settingsWebhookForwardIncomingHolder.setOnClickListener {
-            settingsWebhookForwardIncoming.toggle()
-            config.webhookForwardIncoming = settingsWebhookForwardIncoming.isChecked
-        }
-    }
-
-    private fun setupWebhookForwardOutgoing() = binding.apply {
-        settingsWebhookForwardOutgoing.isChecked = config.webhookForwardOutgoing
-        settingsWebhookForwardOutgoingHolder.setOnClickListener {
-            settingsWebhookForwardOutgoing.toggle()
-            config.webhookForwardOutgoing = settingsWebhookForwardOutgoing.isChecked
-        }
-    }
-
-    private fun setupWebhookBearerToken() = binding.apply {
-        settingsWebhookBearerToken.text = getWebhookBearerTokenText()
-        settingsWebhookBearerTokenHolder.setOnClickListener {
-            WebhookInputDialog(
-                activity = this@SettingsActivity,
-                titleId = R.string.webhook_bearer_token,
-                hintId = R.string.webhook_bearer_token,
-                prefill = config.webhookBearerToken,
-                isUrl = false
-            ) { newToken ->
-                config.webhookBearerToken = newToken
-                settingsWebhookBearerToken.text = getWebhookBearerTokenText()
-            }
-        }
-    }
-
-    private fun getWebhookBearerTokenText(): String {
-        return if (config.webhookBearerToken.isNotEmpty()) {
-            "\u2022\u2022\u2022\u2022"
-        } else {
-            ""
-        }
-    }
-
-    private fun setupWebhookTest() = binding.apply {
-        settingsWebhookTestHolder.setOnClickListener {
-            when {
-                !config.webhookEnabled -> return@setOnClickListener
-                config.webhookUrl.trim().isBlank() -> toast(R.string.webhook_url_required)
-                else -> {
-                    val preview = WebhookSender.previewTest(this@SettingsActivity)
-                    WebhookTestPreviewDialog(
-                        activity = this@SettingsActivity,
-                        result = preview
-                    ) { request ->
-                        ensureBackgroundThread {
-                            val result = WebhookSender.executeTest(this@SettingsActivity, request)
-                            runOnUiThread {
-                                WebhookTestResultDialog(this@SettingsActivity, result)
-                            }
-                        }
-                    }
-                }
-            }
+        settingsWebhookStatus.text = WebhookStatus.text(this@SettingsActivity)
+        settingsWebhookHolder.setOnClickListener {
+            startActivity(Intent(this@SettingsActivity, WebhookSettingsActivity::class.java))
         }
     }
 }

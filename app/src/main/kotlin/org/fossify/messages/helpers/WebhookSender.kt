@@ -1,100 +1,131 @@
 package org.fossify.messages.helpers
 
 import android.content.Context
-import android.net.Uri
+import android.provider.Telephony.Sms
 import android.telephony.SubscriptionManager
+import androidx.work.BackoffPolicy
+import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
 import java.net.HttpURLConnection
-import java.net.URL
+import java.util.concurrent.TimeUnit
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonElement
-import org.fossify.commons.helpers.ensureBackgroundThread
+import org.fossify.messages.BuildConfig
 import org.fossify.messages.extensions.config
 import org.fossify.messages.extensions.getNameAndPhotoFromPhoneNumber
-import org.fossify.messages.models.Message
+import org.fossify.messages.helpers.WebhookSimPolicy.Action
 import org.fossify.messages.models.WebhookPayload
 import org.fossify.messages.models.WebhookTestResult
 
-@Suppress("TooManyFunctions")
+/**
+ * Forwards incoming SMS received on the selected SIM to the configured webhook.
+ *
+ * Policy: incoming SMS only, selected SIM only, HTTPS POST only, Bearer token required.
+ * Nothing is forwarded until a SIM is selected, and forwarding pauses when that SIM is
+ * missing. The optional sender and keyword filters are in [WebhookMessageFilter].
+ * Message bodies are never written to logs, and the work queue only stores message IDs.
+ *
+ * Delivery is retried after network errors and survives a reboot, but a message that has
+ * waited longer than [WebhookClient.MAX_MESSAGE_AGE_MS] (10 minutes) since it was received
+ * is dropped instead of sent, so old one-time codes are not delivered after a long outage.
+ */
 object WebhookSender {
-    private const val TIMEOUT_MS = 15000
+    enum class Delivery { SENT, RETRY, DROPPED }
 
-    private val json = Json { explicitNulls = false }
+    private const val RETRY_DELAY_SECONDS = 30L
+    private const val HTTP_METHOD = "POST"
+    private const val HTTP_TOO_MANY_REQUESTS = 429
+    private const val WORK_NAME_PREFIX = "webhook-sms-"
+
+    /** Plain HTTP is accepted only by debug builds, for local testing. */
+    private val allowCleartext = BuildConfig.DEBUG
 
     private val prettyJson = Json {
         explicitNulls = false
         prettyPrint = true
     }
 
-    fun send(context: Context, eventType: WebhookEventType, message: Message) {
-        val address = message.senderPhoneNumber.ifEmpty {
-            message.participants.firstOrNull()?.phoneNumbers?.firstOrNull()?.value
-        } ?: ""
-        val senderName = message.senderName.ifEmpty {
-            message.participants.firstOrNull()?.name
-        } ?: ""
-        val contactName = senderName.takeIf { it.isNotEmpty() && it != address }
-        send(
-            context,
-            WebhookPayload(
-                eventType = eventType.value,
-                address = address,
-                contactName = contactName,
-                body = message.body.takeIf { it.isNotEmpty() },
-                timestamp = message.millis(),
-                threadId = message.threadId.takeIf { it != 0L },
-                subscriptionId = message.subscriptionId
-                    .takeIf { it != -1 && it != SubscriptionManager.INVALID_SUBSCRIPTION_ID },
-                messageId = message.id.takeIf { it != 0L },
-                appPackage = context.packageName
-            )
-        )
-    }
+    fun isUrlAllowed(url: String) = WebhookClient.isUrlAllowed(url, allowCleartext)
 
-    fun sendOutgoingSms(
-        context: Context,
-        address: String,
-        body: String,
-        threadId: Long,
-        subId: Int,
-        messageId: Long,
-    ) {
-        if (!context.config.webhookEnabled) {
+    /**
+     * Queues an incoming SMS for delivery if it arrived on the selected SIM and passes the
+     * filter. The unique work name stops the same message from being queued twice.
+     */
+    fun enqueueIncomingSms(context: Context, messageId: Long, address: String, body: String, subscriptionId: Int) {
+        if (messageId == 0L) {
             return
         }
-        ensureBackgroundThread {
-            val contactName = context.getNameAndPhotoFromPhoneNumber(address).name
-                .takeIf { it != address }
-            val payload = WebhookPayload(
-                eventType = WebhookEventType.OUTGOING_SMS.value,
-                address = address,
-                contactName = contactName,
-                body = body.takeIf { it.isNotEmpty() },
-                timestamp = System.currentTimeMillis(),
-                threadId = threadId.takeIf { it != 0L },
-                subscriptionId = subId
-                    .takeIf { it != -1 && it != SubscriptionManager.INVALID_SUBSCRIPTION_ID },
-                messageId = messageId.takeIf { it != 0L },
-                appPackage = context.packageName
-            )
-            sendInternal(context, payload)
+
+        // A message that arrives while forwarding is paused is not queued.
+        when (decide(context, address, body, subscriptionId)) {
+            Action.FORWARD -> enqueue(context, messageId)
+            Action.PAUSE -> WebhookSims.requireReselect(context)
+            Action.BLOCKED, Action.SKIP -> Unit
         }
     }
 
-    fun send(context: Context, payload: WebhookPayload) {
-        if (!context.config.webhookEnabled) {
-            return
+    private fun enqueue(context: Context, messageId: Long) {
+        val request = OneTimeWorkRequestBuilder<WebhookWorker>()
+            .setInputData(workDataOf(WebhookWorker.KEY_MESSAGE_ID to messageId))
+            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, RETRY_DELAY_SECONDS, TimeUnit.SECONDS)
+            .build()
+        WorkManager.getInstance(context.applicationContext)
+            .enqueueUniqueWork(WORK_NAME_PREFIX + messageId, ExistingWorkPolicy.KEEP, request)
+    }
+
+    /**
+     * Called by [WebhookWorker] for the first attempt and for every retry. Reads the message
+     * again and re-checks the settings, the SIM selection and the filter before sending.
+     */
+    fun deliver(context: Context, messageId: Long): Delivery {
+        val payload = loadIncomingSms(context, messageId)
+        if (payload == null || WebhookClient.isExpired(payload.timestamp, System.currentTimeMillis())) {
+            return Delivery.DROPPED
         }
-        ensureBackgroundThread {
-            sendInternal(context, payload)
+
+        val subscriptionId = payload.subscriptionId ?: WebhookSimPolicy.NO_SIM
+        return when (decide(context, payload.address, payload.body.orEmpty(), subscriptionId)) {
+            Action.FORWARD -> send(context, payload)
+            Action.PAUSE -> {
+                // While the SIMs are still loading after a reboot this is not a removal yet.
+                if (WebhookSims.isSettled(context)) {
+                    WebhookSims.requireReselect(context)
+                }
+                Delivery.RETRY
+            }
+
+            // Stays queued, unsent, until the user selects a SIM again or the message expires.
+            Action.BLOCKED -> Delivery.RETRY
+            Action.SKIP -> Delivery.DROPPED
         }
     }
 
+    private fun send(context: Context, payload: WebhookPayload): Delivery {
+        val token = context.config.webhookBearerToken
+        val result = WebhookClient.post(buildRequest(context, payload), token, allowCleartext)
+        val code = result.responseCode
+        return when {
+            result.isSuccess -> Delivery.SENT
+            code == null -> Delivery.RETRY
+            code == HttpURLConnection.HTTP_CLIENT_TIMEOUT || code == HTTP_TOO_MANY_REQUESTS -> Delivery.RETRY
+            code >= HttpURLConnection.HTTP_INTERNAL_ERROR -> Delivery.RETRY
+            else -> Delivery.DROPPED
+        }
+    }
+
+    /** The preview shows a redacted Authorization header; the token is added only when sending. */
     fun previewTest(context: Context): WebhookTestResult {
+        val timestamp = System.currentTimeMillis()
         val payload = WebhookPayload(
             eventType = WebhookEventType.TEST.value,
+            eventId = WebhookClient.eventId(context.packageName, "test", timestamp.toString()),
             address = "+1234567890",
             body = "This is a test webhook from Fossify Messages.",
-            timestamp = System.currentTimeMillis(),
+            timestamp = timestamp,
             appPackage = context.packageName
         )
         return buildRequest(context, payload)
@@ -104,155 +135,71 @@ object WebhookSender {
         if (!context.config.webhookEnabled) {
             return request.copy(errorMessage = "Webhook forwarding is disabled")
         }
-        return executeRequest(request)
+        return WebhookClient.post(request, context.config.webhookBearerToken, allowCleartext)
     }
 
-    @Suppress("TooGenericExceptionCaught", "PrintStackTrace")
-    private fun sendInternal(context: Context, payload: WebhookPayload): Boolean {
+    private fun decide(context: Context, address: String, body: String, subscriptionId: Int): Action {
         val config = context.config
-        val urlString = config.webhookUrl.trim()
-        if (!config.webhookEnabled || urlString.isBlank() || !shouldSendEvent(config, payload)) {
-            return false
+        val configured = config.webhookEnabled &&
+            config.webhookForwardIncoming &&
+            WebhookClient.policyError(config.webhookUrl, config.webhookBearerToken, allowCleartext) == null
+        if (!configured) {
+            return Action.SKIP
         }
 
-        val request = buildRequest(context, payload)
-        return executeRequest(request).isSuccess
+        val activeIds = WebhookSims.active(context)?.map { it.subscriptionId }
+        val matches = WebhookSimPolicy.isFromSelectedSim(WebhookSims.selectedId(context), subscriptionId, activeIds) &&
+            WebhookMessageFilter.matches(
+                mode = config.webhookFilterMode,
+                address = address,
+                body = body,
+                senders = config.webhookApprovedSenders,
+                keywords = config.webhookFilterKeywords
+            )
+        return WebhookSimPolicy.action(WebhookSims.state(context, activeIds), matches)
+    }
+
+    private fun loadIncomingSms(context: Context, messageId: Long): WebhookPayload? {
+        val projection = arrayOf(Sms.ADDRESS, Sms.BODY, Sms.DATE, Sms.THREAD_ID, Sms.SUBSCRIPTION_ID)
+        val selection = "${Sms._ID} = ? AND ${Sms.TYPE} = ?"
+        val selectionArgs = arrayOf(messageId.toString(), Sms.MESSAGE_TYPE_INBOX.toString())
+        val cursor = context.contentResolver.query(Sms.CONTENT_URI, projection, selection, selectionArgs, null)
+        return cursor?.use {
+            if (!it.moveToFirst()) {
+                return null
+            }
+
+            val address = it.getString(it.getColumnIndexOrThrow(Sms.ADDRESS)).orEmpty()
+            val timestamp = it.getLong(it.getColumnIndexOrThrow(Sms.DATE))
+            val contactName = context.getNameAndPhotoFromPhoneNumber(address).name
+            WebhookPayload(
+                eventType = WebhookEventType.INCOMING_SMS.value,
+                eventId = WebhookClient.eventId(
+                    context.packageName,
+                    messageId.toString(),
+                    timestamp.toString(),
+                    address
+                ),
+                address = address,
+                contactName = contactName.takeIf { name -> name.isNotEmpty() && name != address },
+                body = it.getString(it.getColumnIndexOrThrow(Sms.BODY))?.takeIf { body -> body.isNotEmpty() },
+                timestamp = timestamp,
+                threadId = it.getLong(it.getColumnIndexOrThrow(Sms.THREAD_ID)).takeIf { id -> id != 0L },
+                subscriptionId = it.getInt(it.getColumnIndexOrThrow(Sms.SUBSCRIPTION_ID))
+                    .takeIf { id -> id != -1 && id != SubscriptionManager.INVALID_SUBSCRIPTION_ID },
+                messageId = messageId,
+                appPackage = context.packageName
+            )
+        }
     }
 
     private fun buildRequest(context: Context, payload: WebhookPayload): WebhookTestResult {
-        val config = context.config
-        val urlString = config.webhookUrl.trim()
-        val body = prettyJson.encodeToString(WebhookPayload.serializer(), payload)
-
-        return when (config.webhookHttpMethod) {
-            WEBHOOK_METHOD_GET -> {
-                val queryParams = payload.toMap()
-                    .filterValues { it != null }
-                    .mapValues { it.value.toString() }
-                val builder = Uri.parse(urlString).buildUpon()
-                queryParams.forEach { (key, value) ->
-                    builder.appendQueryParameter(key, value)
-                }
-                WebhookTestResult(
-                    url = builder.build().toString(),
-                    method = "GET",
-                    headers = buildHeaders(config, null),
-                    requestBody = null,
-                    queryParameters = queryParams,
-                    eventType = payload.eventType
-                )
-            }
-            WEBHOOK_METHOD_PUT -> WebhookTestResult(
-                url = urlString,
-                method = "PUT",
-                headers = buildHeaders(config, body),
-                requestBody = prettyPrintJson(body),
-                eventType = payload.eventType
-            )
-            else -> WebhookTestResult(
-                url = urlString,
-                method = "POST",
-                headers = buildHeaders(config, body),
-                requestBody = prettyPrintJson(body),
-                eventType = payload.eventType
-            )
-        }
-    }
-
-    private fun buildHeaders(config: Config, body: String?): Map<String, String> {
-        val headers = mutableMapOf("Accept" to "application/json")
-        val token = config.webhookBearerToken
-        if (token.isNotBlank()) {
-            headers["Authorization"] = "Bearer $token"
-        }
-        if (body != null) {
-            headers["Content-Type"] = "application/json"
-        }
-        return headers
-    }
-
-    private fun shouldSendEvent(config: Config, payload: WebhookPayload): Boolean {
-        return when (payload.eventType) {
-            WebhookEventType.INCOMING_SMS.value, WebhookEventType.INCOMING_MMS.value -> {
-                config.webhookForwardIncoming
-            }
-            WebhookEventType.OUTGOING_SMS.value, WebhookEventType.OUTGOING_MMS.value -> {
-                config.webhookForwardOutgoing
-            }
-            else -> true
-        }
-    }
-
-    @Suppress("TooGenericExceptionCaught", "PrintStackTrace")
-    private fun executeRequest(request: WebhookTestResult): WebhookTestResult {
-        var connection: HttpURLConnection? = null
-        val start = System.currentTimeMillis()
-        return try {
-            connection = URL(request.url).openConnection() as HttpURLConnection
-            connection.connectTimeout = TIMEOUT_MS
-            connection.readTimeout = TIMEOUT_MS
-            connection.requestMethod = request.method
-            request.headers.forEach { (key, value) ->
-                connection.setRequestProperty(key, value)
-            }
-
-            if (request.requestBody != null) {
-                connection.doOutput = true
-                connection.outputStream.use { it.write(request.requestBody.toByteArray()) }
-            }
-
-            val responseCode = connection.responseCode
-            val responseHeaders = connection.headerFields
-                ?.filter { it.key != null }
-                ?.mapValues { it.value?.joinToString(", ") ?: "" }
-                ?: emptyMap()
-            val stream = if (responseCode >= HttpURLConnection.HTTP_BAD_REQUEST) {
-                connection.errorStream
-            } else {
-                connection.inputStream
-            }
-            val responseBody = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: ""
-            val duration = System.currentTimeMillis() - start
-
-            request.copy(
-                responseCode = responseCode,
-                responseHeaders = responseHeaders,
-                responseBody = prettyPrintJson(responseBody),
-                durationMs = duration,
-                isSuccess = responseCode in HttpURLConnection.HTTP_OK until HttpURLConnection.HTTP_MULT_CHOICE
-            )
-        } catch (e: Exception) {
-            e.printStackTrace()
-            request.copy(
-                errorMessage = e.message ?: e.toString(),
-                durationMs = System.currentTimeMillis() - start
-            )
-        } finally {
-            connection?.disconnect()
-        }
-    }
-
-    private fun prettyPrintJson(raw: String): String {
-        if (raw.isBlank()) return raw
-        return try {
-            val element: JsonElement = json.parseToJsonElement(raw)
-            prettyJson.encodeToString(JsonElement.serializer(), element)
-        } catch (_: Exception) {
-            raw
-        }
-    }
-
-    private fun WebhookPayload.toMap(): Map<String, Any?> {
-        return mapOf(
-            "event_type" to eventType,
-            "address" to address,
-            "contact_name" to contactName,
-            "body" to body,
-            "timestamp" to timestamp,
-            "thread_id" to threadId,
-            "subscription_id" to subscriptionId,
-            "message_id" to messageId,
-            "app_package" to appPackage,
+        return WebhookTestResult(
+            url = context.config.webhookUrl.trim(),
+            method = HTTP_METHOD,
+            headers = WebhookClient.displayHeaders(payload.eventId),
+            requestBody = prettyJson.encodeToString(WebhookPayload.serializer(), payload),
+            eventType = payload.eventType
         )
     }
 }

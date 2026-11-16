@@ -11,6 +11,7 @@ import org.fossify.commons.extensions.toast
 import org.fossify.commons.extensions.value
 import org.fossify.messages.R
 import org.fossify.messages.databinding.DialogWebhookInputBinding
+import org.fossify.messages.helpers.WebhookSender
 
 class WebhookInputDialog(
     private val activity: BaseSimpleActivity,
@@ -42,8 +43,9 @@ class WebhookInputDialog(
                             return@setOnClickListener
                         }
 
-                        if (isUrl && value.startsWith("http://", ignoreCase = true)) {
-                            activity.toast(R.string.webhook_http_insecure)
+                        if (isUrl && value.isNotEmpty() && !WebhookSender.isUrlAllowed(value)) {
+                            activity.toast(R.string.webhook_https_required)
+                            return@setOnClickListener
                         }
 
                         callback(value)
