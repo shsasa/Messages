@@ -17,8 +17,6 @@ import org.fossify.commons.extensions.toast
 import org.fossify.messages.extensions.getThreadId
 import org.fossify.messages.extensions.isPlainTextMimeType
 import org.fossify.messages.extensions.smsSender
-import org.fossify.messages.helpers.WebhookEventType
-import org.fossify.messages.helpers.WebhookSender
 import org.fossify.messages.messaging.SmsException.Companion.ERROR_PERSISTING_MESSAGE
 import org.fossify.messages.models.Attachment
 import org.fossify.messages.receivers.MmsSentReceiver
@@ -120,15 +118,6 @@ class MessagingUtils(val context: Context) {
                 throw e // propagate error to caller
             }
 
-            val sentMessageId = messageUri.lastPathSegment?.toLongOrNull() ?: 0L
-            WebhookSender.sendOutgoingSms(
-                context = context,
-                address = address,
-                body = text,
-                threadId = threadId,
-                subId = subId,
-                messageId = sentMessageId
-            )
         }
     }
 

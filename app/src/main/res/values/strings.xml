@@ -190,11 +190,9 @@
     <string name="webhook_url_invalid">Invalid URL</string>
     <string name="webhook_url_required">A webhook URL is required to enable forwarding</string>
     <string name="webhook_http_method">HTTP method</string>
-    <string name="webhook_method_post">POST</string>
-    <string name="webhook_method_get">GET</string>
-    <string name="webhook_method_put">PUT</string>
-    <string name="webhook_forward_incoming">Forward incoming messages</string>
-    <string name="webhook_forward_outgoing">Forward outgoing messages</string>
+    <string name="webhook_approved_senders">Approved senders</string>
+    <string name="webhook_approved_senders_hint">Senders separated by commas</string>
+    <string name="webhook_forward_incoming">Forward incoming SMS from approved senders</string>
     <string name="webhook_bearer_token">Bearer token</string>
     <string name="send_test_webhook">Send test webhook</string>
     <string name="webhook_test_sent">Test webhook sent successfully</string>
@@ -212,7 +210,7 @@
     <string name="webhook_duration">%d ms</string>
     <string name="send">Send</string>
     <string name="none">None</string>
-    <string name="webhook_http_insecure">HTTP is insecure. Only use it for local/private testing or trusted networks.</string>
+    <string name="webhook_https_required">The webhook URL must start with https://</string>
     <string name="webhook_protocol">Protocol</string>
     <string name="webhook_protocol_http">HTTP (unencrypted, testing only)</string>
     <string name="webhook_protocol_https">HTTPS (secure)</string>

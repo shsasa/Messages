@@ -8,6 +8,9 @@ data class WebhookPayload(
     @SerialName("event_type")
     val eventType: String,
 
+    @SerialName("event_id")
+    val eventId: String,
+
     val address: String,
 
     @SerialName("contact_name")

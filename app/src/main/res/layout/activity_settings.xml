@@ -546,25 +546,25 @@
             </RelativeLayout>
 
             <RelativeLayout
-                android:id="@+id/settings_webhook_method_holder"
+                android:id="@+id/settings_webhook_approved_senders_holder"
                 style="@style/SettingsHolderTextViewStyle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
                 <org.fossify.commons.views.MyTextView
-                    android:id="@+id/settings_webhook_method_label"
+                    android:id="@+id/settings_webhook_approved_senders_label"
                     style="@style/SettingsTextLabelStyle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/webhook_http_method" />
+                    android:text="@string/webhook_approved_senders" />
 
                 <org.fossify.commons.views.MyTextView
-                    android:id="@+id/settings_webhook_method"
+                    android:id="@+id/settings_webhook_approved_senders"
                     style="@style/SettingsTextValueStyle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_below="@+id/settings_webhook_method_label"
-                    tools:text="POST" />
+                    android:layout_below="@+id/settings_webhook_approved_senders_label"
+                    tools:text="GitHub, +97312345678" />
 
             </RelativeLayout>
 
@@ -580,21 +580,6 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="@string/webhook_forward_incoming" />
-
-            </RelativeLayout>
-
-            <RelativeLayout
-                android:id="@+id/settings_webhook_forward_outgoing_holder"
-                style="@style/SettingsHolderSwitchStyle"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <org.fossify.commons.views.MyMaterialSwitch
-                    android:id="@+id/settings_webhook_forward_outgoing"
-                    style="@style/SettingsSwitchStyle"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/webhook_forward_outgoing" />
 
             </RelativeLayout>
 

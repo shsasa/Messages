@@ -50,9 +50,6 @@ import org.fossify.messages.helpers.LOCK_SCREEN_NOTHING
 import org.fossify.messages.helpers.LOCK_SCREEN_SENDER
 import org.fossify.messages.helpers.LOCK_SCREEN_SENDER_MESSAGE
 import org.fossify.messages.helpers.MessagesImporter
-import org.fossify.messages.helpers.WEBHOOK_METHOD_GET
-import org.fossify.messages.helpers.WEBHOOK_METHOD_POST
-import org.fossify.messages.helpers.WEBHOOK_METHOD_PUT
 import org.fossify.messages.helpers.WebhookSender
 import org.fossify.messages.helpers.refreshConversations
 import java.util.Locale
@@ -471,9 +468,8 @@ class SettingsActivity : SimpleActivity() {
     private fun setupWebhook() = binding.apply {
         setupWebhookEnabled()
         setupWebhookUrl()
-        setupWebhookMethod()
+        setupWebhookApprovedSenders()
         setupWebhookForwardIncoming()
-        setupWebhookForwardOutgoing()
         setupWebhookBearerToken()
         setupWebhookTest()
         updateWebhookSettingVisibility()
@@ -548,43 +544,35 @@ class SettingsActivity : SimpleActivity() {
         }
     }
 
-    private fun setupWebhookMethod() = binding.apply {
-        settingsWebhookMethod.text = getWebhookMethodText(config.webhookHttpMethod)
-        settingsWebhookMethodHolder.setOnClickListener {
-            val items = arrayListOf(
-                RadioItem(WEBHOOK_METHOD_POST, getString(R.string.webhook_method_post)),
-                RadioItem(WEBHOOK_METHOD_GET, getString(R.string.webhook_method_get)),
-                RadioItem(WEBHOOK_METHOD_PUT, getString(R.string.webhook_method_put))
-            )
-
-            RadioGroupDialog(this@SettingsActivity, items, config.webhookHttpMethod) {
-                config.webhookHttpMethod = it as Int
-                settingsWebhookMethod.text = getWebhookMethodText(config.webhookHttpMethod)
+    private fun setupWebhookApprovedSenders() = binding.apply {
+        settingsWebhookApprovedSenders.text = getWebhookApprovedSendersText()
+        settingsWebhookApprovedSendersHolder.setOnClickListener {
+            WebhookInputDialog(
+                activity = this@SettingsActivity,
+                titleId = R.string.webhook_approved_senders,
+                hintId = R.string.webhook_approved_senders_hint,
+                prefill = getWebhookApprovedSendersText(),
+                isUrl = false
+            ) { senders ->
+                config.webhookApprovedSenders = senders
+                settingsWebhookApprovedSenders.text = getWebhookApprovedSendersText()
             }
         }
     }
 
-    private fun getWebhookMethodText(method: Int) = getString(
-        when (method) {
-            WEBHOOK_METHOD_GET -> R.string.webhook_method_get
-            WEBHOOK_METHOD_PUT -> R.string.webhook_method_put
-            else -> R.string.webhook_method_post
-        }
-    )
+    private fun getWebhookApprovedSendersText(): String {
+        return config.webhookApprovedSenders
+            .split(',', ';', '\n')
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .joinToString(", ")
+    }
 
     private fun setupWebhookForwardIncoming() = binding.apply {
         settingsWebhookForwardIncoming.isChecked = config.webhookForwardIncoming
         settingsWebhookForwardIncomingHolder.setOnClickListener {
             settingsWebhookForwardIncoming.toggle()
             config.webhookForwardIncoming = settingsWebhookForwardIncoming.isChecked
-        }
-    }
-
-    private fun setupWebhookForwardOutgoing() = binding.apply {
-        settingsWebhookForwardOutgoing.isChecked = config.webhookForwardOutgoing
-        settingsWebhookForwardOutgoingHolder.setOnClickListener {
-            settingsWebhookForwardOutgoing.toggle()
-            config.webhookForwardOutgoing = settingsWebhookForwardOutgoing.isChecked
         }
     }
 
