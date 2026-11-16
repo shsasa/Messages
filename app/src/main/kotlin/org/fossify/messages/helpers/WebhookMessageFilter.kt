@@ -25,12 +25,27 @@ object WebhookMessageFilter {
 
     fun usesKeywords(mode: Int) = mode == MODE_KEYWORDS || mode == MODE_SENDERS_AND_KEYWORDS
 
+    /** False when the mode needs a list that is still empty, so nothing could ever match. */
+    fun isUsable(mode: Int, senders: String, keywords: String): Boolean {
+        val sendersReady = !usesSenders(mode) || WebhookSenderFilter.parse(senders).isNotEmpty()
+        val keywordsReady = !usesKeywords(mode) || parseKeywords(keywords).isNotEmpty()
+        return sendersReady && keywordsReady
+    }
+
     /** Splits a user-entered list (commas, semicolons or new lines) into lowercase keywords. */
     fun parseKeywords(rawList: String): Set<String> {
         return rawList.split(',', ';', '\n')
             .map { it.trim().lowercase() }
             .filter { it.isNotEmpty() }
             .toSet()
+    }
+
+    /** A user-entered list as shown in settings: trimmed entries separated by ", ". */
+    fun displayList(rawList: String): String {
+        return rawList.split(',', ';', '\n')
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .joinToString(", ")
     }
 
     /** True if the message text contains at least one keyword, ignoring case. */

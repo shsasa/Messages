@@ -26,6 +26,19 @@ object WebhookSimPolicy {
         READY,
     }
 
+    enum class Action {
+        FORWARD,
+
+        /** Not for the webhook: wrong SIM, filtered out, or no SIM selected. */
+        SKIP,
+
+        /** The selected SIM has just been found missing: pause, and do not send. */
+        PAUSE,
+
+        /** Already paused: do not send until the user selects a SIM again. */
+        BLOCKED,
+    }
+
     /** [activeIds] is null when the active SIMs cannot be read. */
     fun state(selectedId: Int, reselectRequired: Boolean, activeIds: Collection<Int>?): State {
         return when {
@@ -37,19 +50,23 @@ object WebhookSimPolicy {
     }
 
     /**
-     * The active SIM a message arrived on, or [NO_SIM] if that is unknown. A message without
-     * a subscription ID is attributed to the only active SIM when there is exactly one.
+     * True only if the message carries the subscription ID of the selected, active SIM.
+     * A message without a subscription ID never matches, even when only one SIM is active.
      */
-    fun messageSim(messageSubscriptionId: Int, activeIds: Collection<Int>?): Int {
-        return when {
-            activeIds == null -> NO_SIM
-            messageSubscriptionId in activeIds -> messageSubscriptionId
-            messageSubscriptionId < 0 && activeIds.size == 1 -> activeIds.first()
-            else -> NO_SIM
-        }
+    fun isFromSelectedSim(selectedId: Int, messageSubscriptionId: Int, activeIds: Collection<Int>?): Boolean {
+        return selectedId != NO_SIM &&
+            messageSubscriptionId == selectedId &&
+            activeIds != null &&
+            selectedId in activeIds
     }
 
-    fun isFromSelectedSim(selectedId: Int, messageSubscriptionId: Int, activeIds: Collection<Int>?): Boolean {
-        return selectedId != NO_SIM && messageSim(messageSubscriptionId, activeIds) == selectedId
+    /** What to do with a message, on arrival and again before every delivery attempt. */
+    fun action(state: State, matches: Boolean): Action {
+        return when (state) {
+            State.READY -> if (matches) Action.FORWARD else Action.SKIP
+            State.MISSING -> Action.PAUSE
+            State.RESELECT_REQUIRED -> Action.BLOCKED
+            State.NOT_SELECTED -> Action.SKIP
+        }
     }
 }

@@ -6,9 +6,10 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.telephony.TelephonyManager
 import androidx.core.app.NotificationCompat
 import org.fossify.messages.R
-import org.fossify.messages.activities.SettingsActivity
+import org.fossify.messages.activities.WebhookSettingsActivity
 import org.fossify.messages.extensions.subscriptionManagerCompat
 
 /**
@@ -43,6 +44,17 @@ object WebhookSims {
         } catch (_: SecurityException) {
             null
         }
+    }
+
+    /**
+     * False while a SIM slot is still starting up, for example right after a reboot. A missing
+     * SIM only counts as removed once the slots have settled.
+     */
+    fun isSettled(context: Context): Boolean {
+        val telephony = context.getSystemService(TelephonyManager::class.java)
+        val slots = context.subscriptionManagerCompat().activeSubscriptionInfoCountMax
+        val starting = setOf(TelephonyManager.SIM_STATE_UNKNOWN, TelephonyManager.SIM_STATE_NOT_READY)
+        return (0 until slots).none { telephony.getSimState(it) in starting }
     }
 
     /** For example "SIM 1 · Carrier", or just "SIM 1" when the carrier is unknown. */
@@ -95,7 +107,7 @@ object WebhookSims {
         val intent = PendingIntent.getActivity(
             context,
             NOTIFICATION_ID,
-            Intent(context, SettingsActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            Intent(context, WebhookSettingsActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val text = context.getString(R.string.webhook_sim_missing)

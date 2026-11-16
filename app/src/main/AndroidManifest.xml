@@ -144,6 +144,13 @@
             tools:replace="android:label" />
 
         <activity
+            android:name=".activities.WebhookSettingsActivity"
+            android:configChanges="orientation"
+            android:exported="false"
+            android:label="@string/webhook_forwarding"
+            android:parentActivityName=".activities.SettingsActivity" />
+
+        <activity
             android:name=".activities.ManageBlockedKeywordsActivity"
             android:configChanges="orientation"
             android:exported="false"

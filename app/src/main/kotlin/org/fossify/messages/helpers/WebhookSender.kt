@@ -16,6 +16,7 @@ import kotlinx.serialization.json.Json
 import org.fossify.messages.BuildConfig
 import org.fossify.messages.extensions.config
 import org.fossify.messages.extensions.getNameAndPhotoFromPhoneNumber
+import org.fossify.messages.helpers.WebhookSimPolicy.Action
 import org.fossify.messages.models.WebhookPayload
 import org.fossify.messages.models.WebhookTestResult
 
@@ -33,8 +34,6 @@ import org.fossify.messages.models.WebhookTestResult
  */
 object WebhookSender {
     enum class Delivery { SENT, RETRY, DROPPED }
-
-    private enum class Decision { FORWARD, SKIP, SIM_MISSING }
 
     private const val RETRY_DELAY_SECONDS = 30L
     private const val HTTP_METHOD = "POST"
@@ -60,10 +59,11 @@ object WebhookSender {
             return
         }
 
+        // A message that arrives while forwarding is paused is not queued.
         when (decide(context, address, body, subscriptionId)) {
-            Decision.FORWARD -> enqueue(context, messageId)
-            Decision.SIM_MISSING -> WebhookSims.requireReselect(context)
-            Decision.SKIP -> Unit
+            Action.FORWARD -> enqueue(context, messageId)
+            Action.PAUSE -> WebhookSims.requireReselect(context)
+            Action.BLOCKED, Action.SKIP -> Unit
         }
     }
 
@@ -89,10 +89,18 @@ object WebhookSender {
 
         val subscriptionId = payload.subscriptionId ?: WebhookSimPolicy.NO_SIM
         return when (decide(context, payload.address, payload.body.orEmpty(), subscriptionId)) {
-            Decision.FORWARD -> send(context, payload)
-            // The SIMs may not be readable yet right after a reboot, so try again until the message expires.
-            Decision.SIM_MISSING -> Delivery.RETRY
-            Decision.SKIP -> Delivery.DROPPED
+            Action.FORWARD -> send(context, payload)
+            Action.PAUSE -> {
+                // While the SIMs are still loading after a reboot this is not a removal yet.
+                if (WebhookSims.isSettled(context)) {
+                    WebhookSims.requireReselect(context)
+                }
+                Delivery.RETRY
+            }
+
+            // Stays queued, unsent, until the user selects a SIM again or the message expires.
+            Action.BLOCKED -> Delivery.RETRY
+            Action.SKIP -> Delivery.DROPPED
         }
     }
 
@@ -130,17 +138,17 @@ object WebhookSender {
         return WebhookClient.post(request, context.config.webhookBearerToken, allowCleartext)
     }
 
-    private fun decide(context: Context, address: String, body: String, subscriptionId: Int): Decision {
+    private fun decide(context: Context, address: String, body: String, subscriptionId: Int): Action {
         val config = context.config
         val configured = config.webhookEnabled &&
             config.webhookForwardIncoming &&
             WebhookClient.policyError(config.webhookUrl, config.webhookBearerToken, allowCleartext) == null
         if (!configured) {
-            return Decision.SKIP
+            return Action.SKIP
         }
 
         val activeIds = WebhookSims.active(context)?.map { it.subscriptionId }
-        val forward = WebhookSimPolicy.isFromSelectedSim(WebhookSims.selectedId(context), subscriptionId, activeIds) &&
+        val matches = WebhookSimPolicy.isFromSelectedSim(WebhookSims.selectedId(context), subscriptionId, activeIds) &&
             WebhookMessageFilter.matches(
                 mode = config.webhookFilterMode,
                 address = address,
@@ -148,11 +156,7 @@ object WebhookSender {
                 senders = config.webhookApprovedSenders,
                 keywords = config.webhookFilterKeywords
             )
-        return when (WebhookSims.state(context, activeIds)) {
-            WebhookSimPolicy.State.READY -> if (forward) Decision.FORWARD else Decision.SKIP
-            WebhookSimPolicy.State.MISSING -> Decision.SIM_MISSING
-            WebhookSimPolicy.State.NOT_SELECTED, WebhookSimPolicy.State.RESELECT_REQUIRED -> Decision.SKIP
-        }
+        return WebhookSimPolicy.action(WebhookSims.state(context, activeIds), matches)
     }
 
     private fun loadIncomingSms(context: Context, messageId: Long): WebhookPayload? {
