@@ -16,9 +16,15 @@ class WebhookTestResultDialog(
     init {
         addProperty(R.string.webhook_url, result.url)
         addProperty(R.string.webhook_http_method, result.method)
-        addProperty(R.string.webhook_response_code, result.responseCode?.toString() ?: activity.getString(R.string.none))
+        addProperty(
+            R.string.webhook_response_code,
+            result.responseCode?.toString() ?: activity.getString(R.string.none)
+        )
         addProperty(R.string.webhook_duration, activity.getString(R.string.webhook_duration, result.durationMs))
-        addProperty(R.string.webhook_response_headers, formatMap(result.responseHeaders) ?: activity.getString(R.string.none))
+        addProperty(
+            R.string.webhook_response_headers,
+            formatMap(result.responseHeaders) ?: activity.getString(R.string.none)
+        )
         addProperty(R.string.webhook_response_body, result.responseBody ?: activity.getString(R.string.none))
         if (!result.errorMessage.isNullOrBlank()) {
             addProperty(R.string.webhook_error, result.errorMessage)
@@ -53,7 +59,8 @@ class WebhookTestResultDialog(
             appendLine("${activity.getString(R.string.webhook_request_body)}:")
             appendLine(result.requestBody ?: activity.getString(R.string.none))
             appendLine()
-            appendLine("${activity.getString(R.string.webhook_response_code)}: ${result.responseCode ?: activity.getString(R.string.none)}")
+            val responseCode = result.responseCode ?: activity.getString(R.string.none)
+            appendLine("${activity.getString(R.string.webhook_response_code)}: $responseCode")
             appendLine("${activity.getString(R.string.webhook_duration, result.durationMs)}")
             appendLine()
             appendLine("${activity.getString(R.string.webhook_response_headers)}:")

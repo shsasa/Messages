@@ -8,8 +8,7 @@
     <ID>CyclomaticComplexMethod:ConversationsAdapter.kt$ConversationsAdapter$override fun actionItemPressed(id: Int)</ID>
     <ID>CyclomaticComplexMethod:MainActivity.kt$MainActivity$private fun getNewConversations(cachedConversations: ArrayList&lt;Conversation&gt;)</ID>
     <ID>CyclomaticComplexMethod:MessagesImporter.kt$MessagesImporter$private fun InputStream.importXml()</ID>
-    <ID>CyclomaticComplexMethod:NotificationHelper.kt$NotificationHelper$@SuppressLint("NewApi") fun showMessageNotification( messageId: Long, address: String, body: String, threadId: Long, bitmap: Bitmap?, sender: String?, alertOnlyOnce: Boolean = false )</ID>
-    <ID>CyclomaticComplexMethod:ThreadActivity.kt$ThreadActivity$@SuppressLint("MissingPermission") private fun getThreadItems(): ArrayList&lt;ThreadItem&gt;</ID>
+    <ID>CyclomaticComplexMethod:NotificationHelper.kt$NotificationHelper$@SuppressLint("NewApi") fun showMessageNotification( messageId: Long, isMms: Boolean, address: String, body: String, threadId: Long, bitmap: Bitmap?, sender: String?, alertOnlyOnce: Boolean = false )</ID>
     <ID>CyclomaticComplexMethod:ThreadActivity.kt$ThreadActivity$private fun refreshMenuItems()</ID>
     <ID>CyclomaticComplexMethod:ThreadActivity.kt$ThreadActivity$private fun setupButtons()</ID>
     <ID>CyclomaticComplexMethod:ThreadActivity.kt$ThreadActivity$private fun setupThread(callback: () -&gt; Unit)</ID>
@@ -26,7 +25,7 @@
     <ID>ForbiddenComment:SmsStatusDeliveredReceiver.kt$SmsStatusDeliveredReceiver$// TODO: Need to check whether SC still trying to deliver the SMS to destination and will send the report again?</ID>
     <ID>FunctionParameterNaming:Config.kt$Config$SIMId: Int</ID>
     <ID>LargeClass:ThreadActivity.kt$ThreadActivity : SimpleActivity</ID>
-    <ID>LongMethod:NotificationHelper.kt$NotificationHelper$@SuppressLint("NewApi") fun showMessageNotification( messageId: Long, address: String, body: String, threadId: Long, bitmap: Bitmap?, sender: String?, alertOnlyOnce: Boolean = false )</ID>
+    <ID>LongMethod:NotificationHelper.kt$NotificationHelper$@SuppressLint("NewApi") fun showMessageNotification( messageId: Long, isMms: Boolean, address: String, body: String, threadId: Long, bitmap: Bitmap?, sender: String?, alertOnlyOnce: Boolean = false )</ID>
     <ID>MagicNumber:Activity.kt$1000000</ID>
     <ID>MagicNumber:BaseConversationsAdapter.kt$BaseConversationsAdapter$0.7f</ID>
     <ID>MagicNumber:BaseConversationsAdapter.kt$BaseConversationsAdapter$0.8f</ID>
@@ -132,11 +131,10 @@
     <ID>MaxLineLength:VCard.kt$VCardWrapper$data</ID>
     <ID>MaxLineLength:VCardViewerAdapter.kt$VCardViewerAdapter.VCardPropertyViewHolder$inner</ID>
     <ID>NestedBlockDepth:AttachmentUtils.kt$AttachmentUtils$private fun readBody(parser: XmlPullParser): List&lt;String&gt;</ID>
-    <ID>NestedBlockDepth:Context.kt$fun Context.getThreadParticipants( threadId: Long, contactsMap: HashMap&lt;Int, SimpleContact&gt;?, ): ArrayList&lt;SimpleContact&gt;</ID>
     <ID>NestedBlockDepth:MessagesImporter.kt$MessagesImporter$private fun InputStream.importXml()</ID>
     <ID>NestedBlockDepth:MessagesWriter.kt$MessagesWriter$@SuppressLint("NewApi") private fun writeMmsPart(mmsPart: MmsPart, messageId: Long)</ID>
     <ID>NestedBlockDepth:Messaging.kt$fun Context.sendMessageCompat( text: String, addresses: List&lt;String&gt;, subId: Int?, attachments: List&lt;Attachment&gt;, messageId: Long? = null )</ID>
-    <ID>NestedBlockDepth:MessagingUtils.kt$MessagingUtils$@Deprecated("TODO: Move/rewrite MMS code into the app.") fun sendMmsMessage( text: String, addresses: List&lt;String&gt;, attachment: Attachment?, settings: Settings, messageId: Long? = null )</ID>
+    <ID>NestedBlockDepth:MessagingUtils.kt$MessagingUtils$@Deprecated("TODO: Move/rewrite MMS code into the app.") fun sendMmsMessage( text: String, addresses: List&lt;String&gt;, attachment: Attachment?, settings: Settings, messageId: Long? = null, )</ID>
     <ID>NestedBlockDepth:MessagingUtils.kt$MessagingUtils$fun updateSmsMessageSendingStatus(messageUri: Uri?, type: Int)</ID>
     <ID>NestedBlockDepth:SmsStatusDeliveredReceiver.kt$SmsStatusDeliveredReceiver$override fun updateAndroidDatabase(context: Context, intent: Intent, receiverResultCode: Int)</ID>
     <ID>NestedBlockDepth:ThreadActivity.kt$ThreadActivity$private fun setupButtons()</ID>
@@ -166,7 +164,7 @@
     <ID>SwallowedException:VCardParser.kt$e: Exception</ID>
     <ID>ThrowingExceptionsWithoutMessageOrCause:AttachmentUtils.kt$AttachmentUtils$IllegalStateException()</ID>
     <ID>ThrowingExceptionsWithoutMessageOrCause:MessagesImporter.kt$MessagesImporter$IllegalStateException()</ID>
-    <ID>ThrowsCount:SmsSender.kt$SmsSender$fun sendMessage( subId: Int, destination: String, body: String, serviceCenter: String?, requireDeliveryReport: Boolean, messageUri: Uri )</ID>
+    <ID>ThrowsCount:SmsSender.kt$SmsSender$fun sendMessage( subId: Int, destination: String, body: String, serviceCenter: String?, requireDeliveryReport: Boolean, messageUri: Uri, )</ID>
     <ID>TooGenericExceptionCaught:Activity.kt$e: Exception</ID>
     <ID>TooGenericExceptionCaught:ArchivedConversationsActivity.kt$ArchivedConversationsActivity$e: Exception</ID>
     <ID>TooGenericExceptionCaught:BlockedKeywordsExporter.kt$BlockedKeywordsExporter$e: Exception</ID>
