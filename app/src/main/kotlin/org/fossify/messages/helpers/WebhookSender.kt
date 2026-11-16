@@ -10,9 +10,7 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
-import java.io.IOException
 import java.net.HttpURLConnection
-import java.net.URL
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 import kotlinx.serialization.json.Json
@@ -25,30 +23,31 @@ import org.fossify.messages.models.WebhookTestResult
 /**
  * Forwards incoming SMS from approved senders to the configured webhook.
  *
- * Policy: incoming SMS only, approved senders only, HTTPS POST only, Bearer authentication.
+ * Policy: incoming SMS only, approved senders only, HTTPS POST only, Bearer token required.
  * Message bodies are never written to logs, and the work queue only stores message IDs.
+ *
+ * Delivery is retried after network errors and survives a reboot, but a message that has
+ * waited longer than [WebhookClient.MAX_MESSAGE_AGE_MS] (10 minutes) since it was received
+ * is dropped instead of sent, so old one-time codes are not delivered after a long outage.
  */
 object WebhookSender {
     enum class Delivery { SENT, RETRY, DROPPED }
 
-    private const val TIMEOUT_MS = 15000
     private const val RETRY_DELAY_SECONDS = 30L
     private const val HTTP_METHOD = "POST"
     private const val HTTP_TOO_MANY_REQUESTS = 429
     private const val WORK_NAME_PREFIX = "webhook-sms-"
     private const val EVENT_ID_LENGTH = 32
 
+    /** Plain HTTP is accepted only by debug builds, for local testing. */
+    private val allowCleartext = BuildConfig.DEBUG
+
     private val prettyJson = Json {
         explicitNulls = false
         prettyPrint = true
     }
 
-    /** HTTPS is required. Plain HTTP is accepted only by debug builds, for local testing. */
-    fun isUrlAllowed(url: String): Boolean {
-        val trimmed = url.trim()
-        return trimmed.startsWith("https://", ignoreCase = true) ||
-            (BuildConfig.DEBUG && trimmed.startsWith("http://", ignoreCase = true))
-    }
+    fun isUrlAllowed(url: String) = WebhookClient.isUrlAllowed(url, allowCleartext)
 
     /**
      * Queues an incoming SMS for delivery if forwarding is on and the sender is approved.
@@ -71,11 +70,15 @@ object WebhookSender {
     /** Called by [WebhookWorker]. Reads the message again and re-checks the policy before sending. */
     fun deliver(context: Context, messageId: Long): Delivery {
         val payload = loadIncomingSms(context, messageId)
-        if (payload == null || !shouldForward(context, payload.address)) {
+        if (payload == null ||
+            WebhookClient.isExpired(payload.timestamp, System.currentTimeMillis()) ||
+            !shouldForward(context, payload.address)
+        ) {
             return Delivery.DROPPED
         }
 
-        val result = executeRequest(buildRequest(context, payload))
+        val token = context.config.webhookBearerToken
+        val result = WebhookClient.post(buildRequest(context, payload), token, allowCleartext)
         val code = result.responseCode
         return when {
             result.isSuccess -> Delivery.SENT
@@ -86,6 +89,7 @@ object WebhookSender {
         }
     }
 
+    /** The preview shows a redacted Authorization header; the token is added only when sending. */
     fun previewTest(context: Context): WebhookTestResult {
         val timestamp = System.currentTimeMillis()
         val payload = WebhookPayload(
@@ -103,18 +107,15 @@ object WebhookSender {
         if (!context.config.webhookEnabled) {
             return request.copy(errorMessage = "Webhook forwarding is disabled")
         }
-        if (!isUrlAllowed(request.url)) {
-            return request.copy(errorMessage = "The webhook URL must start with https://")
-        }
-        return executeRequest(request)
+        return WebhookClient.post(request, context.config.webhookBearerToken, allowCleartext)
     }
 
     private fun shouldForward(context: Context, address: String): Boolean {
         val config = context.config
         return config.webhookEnabled &&
             config.webhookForwardIncoming &&
-            isUrlAllowed(config.webhookUrl) &&
-            WebhookSenderFilter.isApproved(address, config.webhookApprovedSenders)
+            WebhookSenderFilter.isApproved(address, config.webhookApprovedSenders) &&
+            WebhookClient.policyError(config.webhookUrl, config.webhookBearerToken, allowCleartext) == null
     }
 
     private fun loadIncomingSms(context: Context, messageId: Long): WebhookPayload? {
@@ -153,73 +154,12 @@ object WebhookSender {
     }
 
     private fun buildRequest(context: Context, payload: WebhookPayload): WebhookTestResult {
-        val config = context.config
-        val body = prettyJson.encodeToString(WebhookPayload.serializer(), payload)
-        val headers = mutableMapOf(
-            "Accept" to "application/json",
-            "Content-Type" to "application/json",
-            "Idempotency-Key" to payload.eventId,
-        )
-        val token = config.webhookBearerToken
-        if (token.isNotBlank()) {
-            headers["Authorization"] = "Bearer $token"
-        }
-
         return WebhookTestResult(
-            url = config.webhookUrl.trim(),
+            url = context.config.webhookUrl.trim(),
             method = HTTP_METHOD,
-            headers = headers,
-            requestBody = body,
+            headers = WebhookClient.displayHeaders(payload.eventId),
+            requestBody = prettyJson.encodeToString(WebhookPayload.serializer(), payload),
             eventType = payload.eventType
         )
-    }
-
-    private fun executeRequest(request: WebhookTestResult): WebhookTestResult {
-        var connection: HttpURLConnection? = null
-        val start = System.currentTimeMillis()
-        return try {
-            connection = URL(request.url).openConnection() as HttpURLConnection
-            connection.connectTimeout = TIMEOUT_MS
-            connection.readTimeout = TIMEOUT_MS
-            connection.requestMethod = request.method
-            // A redirect could send the token and message to another host or to plain HTTP.
-            connection.instanceFollowRedirects = false
-            request.headers.forEach { (key, value) ->
-                connection.setRequestProperty(key, value)
-            }
-
-            if (request.requestBody != null) {
-                connection.doOutput = true
-                connection.outputStream.use { it.write(request.requestBody.toByteArray()) }
-            }
-
-            val responseCode = connection.responseCode
-            val responseHeaders = connection.headerFields
-                ?.filter { it.key != null }
-                ?.mapValues { it.value?.joinToString(", ") ?: "" }
-                ?: emptyMap()
-            val stream = if (responseCode >= HttpURLConnection.HTTP_BAD_REQUEST) {
-                connection.errorStream
-            } else {
-                connection.inputStream
-            }
-            val responseBody = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: ""
-
-            request.copy(
-                responseCode = responseCode,
-                responseHeaders = responseHeaders,
-                responseBody = responseBody,
-                durationMs = System.currentTimeMillis() - start,
-                isSuccess = responseCode in HttpURLConnection.HTTP_OK until HttpURLConnection.HTTP_MULT_CHOICE
-            )
-        } catch (e: IOException) {
-            // Deliberately not logged: nothing about a message may reach logcat.
-            request.copy(
-                errorMessage = e.message ?: e.javaClass.simpleName,
-                durationMs = System.currentTimeMillis() - start
-            )
-        } finally {
-            connection?.disconnect()
-        }
     }
 }

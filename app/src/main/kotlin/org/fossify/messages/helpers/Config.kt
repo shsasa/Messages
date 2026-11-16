@@ -175,8 +175,10 @@ class Config(context: Context) : BaseConfig(context) {
             .putBoolean(WEBHOOK_FORWARD_OUTGOING, webhookForwardOutgoing).apply()
 
     var webhookBearerToken: String
-        get() = prefs.getString(WEBHOOK_BEARER_TOKEN, "")!!
-        set(webhookBearerToken) = prefs.edit().putString(WEBHOOK_BEARER_TOKEN, webhookBearerToken).apply()
+        get() = WebhookTokenStore.get(context, prefs)
+        set(webhookBearerToken) {
+            WebhookTokenStore.set(context, prefs, webhookBearerToken)
+        }
 
     var webhookApprovedSenders: String
         get() = prefs.getString(WEBHOOK_APPROVED_SENDERS, "")!!

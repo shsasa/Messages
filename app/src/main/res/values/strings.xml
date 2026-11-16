@@ -194,6 +194,7 @@
     <string name="webhook_approved_senders_hint">Senders separated by commas</string>
     <string name="webhook_forward_incoming">Forward incoming SMS from approved senders</string>
     <string name="webhook_bearer_token">Bearer token</string>
+    <string name="webhook_bearer_token_hint">New token (leave empty to remove)</string>
     <string name="send_test_webhook">Send test webhook</string>
     <string name="webhook_test_sent">Test webhook sent successfully</string>
     <string name="webhook_test_failed">Test webhook failed</string>

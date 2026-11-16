@@ -582,8 +582,8 @@ class SettingsActivity : SimpleActivity() {
             WebhookInputDialog(
                 activity = this@SettingsActivity,
                 titleId = R.string.webhook_bearer_token,
-                hintId = R.string.webhook_bearer_token,
-                prefill = config.webhookBearerToken,
+                hintId = R.string.webhook_bearer_token_hint,
+                prefill = "",
                 isUrl = false
             ) { newToken ->
                 config.webhookBearerToken = newToken
