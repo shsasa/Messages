@@ -56,6 +56,8 @@ const val WEBHOOK_FORWARD_INCOMING = "webhook_forward_incoming"
 const val WEBHOOK_FORWARD_OUTGOING = "webhook_forward_outgoing"
 const val WEBHOOK_BEARER_TOKEN = "webhook_bearer_token"
 const val WEBHOOK_APPROVED_SENDERS = "webhook_approved_senders"
+const val WEBHOOK_FILTER_MODE = "webhook_filter_mode"
+const val WEBHOOK_FILTER_KEYWORDS = "webhook_filter_keywords"
 
 const val WEBHOOK_METHOD_POST = 1
 const val WEBHOOK_METHOD_GET = 2

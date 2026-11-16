@@ -32,6 +32,9 @@ class App : FossifyApp() {
         }
 
         ensureBackgroundThread {
+            // Reading the filter mode fixes its default before any webhook setting can change:
+            // unfiltered for a new configuration, approved senders only for an existing one.
+            config.webhookFilterMode
             // Reading the token moves one saved in plain text by older versions into encrypted storage.
             config.webhookBearerToken
             rescheduleAllScheduledMessages()

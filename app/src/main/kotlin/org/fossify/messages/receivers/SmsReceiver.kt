@@ -154,6 +154,6 @@ class SmsReceiver : BroadcastReceiver() {
             bitmap = bitmap
         )
 
-        WebhookSender.enqueueIncomingSms(context, newMessageId, address)
+        WebhookSender.enqueueIncomingSms(context, newMessageId, address, body, subscriptionId)
     }
 }

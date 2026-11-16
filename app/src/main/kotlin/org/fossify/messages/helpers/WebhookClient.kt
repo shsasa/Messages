@@ -5,6 +5,7 @@ import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URISyntaxException
 import java.net.URL
+import java.security.MessageDigest
 import org.fossify.messages.models.WebhookTestResult
 
 /**
@@ -23,6 +24,7 @@ object WebhookClient {
     const val ERROR_TOKEN = "A Bearer token is required"
 
     private const val TIMEOUT_MS = 15000
+    private const val EVENT_ID_LENGTH = 32
     private const val AUTHORIZATION = "Authorization"
 
     /** Returns why a request must not be sent, or null if it may be sent. */
@@ -44,6 +46,12 @@ object WebhookClient {
         val scheme = uri.scheme?.lowercase()
         val schemeAllowed = scheme == "https" || (allowCleartext && scheme == "http")
         return schemeAllowed && !uri.host.isNullOrBlank()
+    }
+
+    /** Stable per message, so the receiver can discard a retry it has already processed. */
+    fun eventId(vararg parts: String): String {
+        val digest = MessageDigest.getInstance("SHA-256").digest(parts.joinToString("|").toByteArray())
+        return digest.joinToString("") { "%02x".format(it) }.take(EVENT_ID_LENGTH)
     }
 
     fun isExpired(messageTimestamp: Long, now: Long): Boolean {

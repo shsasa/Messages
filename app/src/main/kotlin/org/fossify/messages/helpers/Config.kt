@@ -184,4 +184,32 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getString(WEBHOOK_APPROVED_SENDERS, "")!!
         set(webhookApprovedSenders) = prefs.edit()
             .putString(WEBHOOK_APPROVED_SENDERS, webhookApprovedSenders).apply()
+
+    /**
+     * One of the WebhookMessageFilter modes. The first read fixes the default: unfiltered for
+     * a new configuration, approved senders only for one made by an older version.
+     */
+    var webhookFilterMode: Int
+        get() {
+            if (!prefs.contains(WEBHOOK_FILTER_MODE)) {
+                val legacyKeys = listOf(
+                    WEBHOOK_ENABLED,
+                    WEBHOOK_URL,
+                    WEBHOOK_HTTP_METHOD,
+                    WEBHOOK_FORWARD_INCOMING,
+                    WEBHOOK_FORWARD_OUTGOING,
+                    WEBHOOK_BEARER_TOKEN,
+                    WEBHOOK_APPROVED_SENDERS
+                )
+                val hasExisting = legacyKeys.any(prefs::contains) || webhookBearerToken.isNotEmpty()
+                webhookFilterMode = WebhookMessageFilter.defaultMode(hasExisting)
+            }
+            return prefs.getInt(WEBHOOK_FILTER_MODE, WebhookMessageFilter.MODE_SENDERS)
+        }
+        set(webhookFilterMode) = prefs.edit().putInt(WEBHOOK_FILTER_MODE, webhookFilterMode).apply()
+
+    var webhookFilterKeywords: String
+        get() = prefs.getString(WEBHOOK_FILTER_KEYWORDS, "")!!
+        set(webhookFilterKeywords) = prefs.edit()
+            .putString(WEBHOOK_FILTER_KEYWORDS, webhookFilterKeywords).apply()
 }

@@ -11,7 +11,6 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import java.net.HttpURLConnection
-import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 import kotlinx.serialization.json.Json
 import org.fossify.messages.BuildConfig
@@ -21,9 +20,11 @@ import org.fossify.messages.models.WebhookPayload
 import org.fossify.messages.models.WebhookTestResult
 
 /**
- * Forwards incoming SMS from approved senders to the configured webhook.
+ * Forwards incoming SMS received on the selected SIM to the configured webhook.
  *
- * Policy: incoming SMS only, approved senders only, HTTPS POST only, Bearer token required.
+ * Policy: incoming SMS only, selected SIM only, HTTPS POST only, Bearer token required.
+ * Nothing is forwarded until a SIM is selected, and forwarding pauses when that SIM is
+ * missing. The optional sender and keyword filters are in [WebhookMessageFilter].
  * Message bodies are never written to logs, and the work queue only stores message IDs.
  *
  * Delivery is retried after network errors and survives a reboot, but a message that has
@@ -33,11 +34,12 @@ import org.fossify.messages.models.WebhookTestResult
 object WebhookSender {
     enum class Delivery { SENT, RETRY, DROPPED }
 
+    private enum class Decision { FORWARD, SKIP, SIM_MISSING }
+
     private const val RETRY_DELAY_SECONDS = 30L
     private const val HTTP_METHOD = "POST"
     private const val HTTP_TOO_MANY_REQUESTS = 429
     private const val WORK_NAME_PREFIX = "webhook-sms-"
-    private const val EVENT_ID_LENGTH = 32
 
     /** Plain HTTP is accepted only by debug builds, for local testing. */
     private val allowCleartext = BuildConfig.DEBUG
@@ -50,14 +52,22 @@ object WebhookSender {
     fun isUrlAllowed(url: String) = WebhookClient.isUrlAllowed(url, allowCleartext)
 
     /**
-     * Queues an incoming SMS for delivery if forwarding is on and the sender is approved.
-     * The unique work name stops the same message from being queued twice.
+     * Queues an incoming SMS for delivery if it arrived on the selected SIM and passes the
+     * filter. The unique work name stops the same message from being queued twice.
      */
-    fun enqueueIncomingSms(context: Context, messageId: Long, address: String) {
-        if (messageId == 0L || !shouldForward(context, address)) {
+    fun enqueueIncomingSms(context: Context, messageId: Long, address: String, body: String, subscriptionId: Int) {
+        if (messageId == 0L) {
             return
         }
 
+        when (decide(context, address, body, subscriptionId)) {
+            Decision.FORWARD -> enqueue(context, messageId)
+            Decision.SIM_MISSING -> WebhookSims.requireReselect(context)
+            Decision.SKIP -> Unit
+        }
+    }
+
+    private fun enqueue(context: Context, messageId: Long) {
         val request = OneTimeWorkRequestBuilder<WebhookWorker>()
             .setInputData(workDataOf(WebhookWorker.KEY_MESSAGE_ID to messageId))
             .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
@@ -67,16 +77,26 @@ object WebhookSender {
             .enqueueUniqueWork(WORK_NAME_PREFIX + messageId, ExistingWorkPolicy.KEEP, request)
     }
 
-    /** Called by [WebhookWorker]. Reads the message again and re-checks the policy before sending. */
+    /**
+     * Called by [WebhookWorker] for the first attempt and for every retry. Reads the message
+     * again and re-checks the settings, the SIM selection and the filter before sending.
+     */
     fun deliver(context: Context, messageId: Long): Delivery {
         val payload = loadIncomingSms(context, messageId)
-        if (payload == null ||
-            WebhookClient.isExpired(payload.timestamp, System.currentTimeMillis()) ||
-            !shouldForward(context, payload.address)
-        ) {
+        if (payload == null || WebhookClient.isExpired(payload.timestamp, System.currentTimeMillis())) {
             return Delivery.DROPPED
         }
 
+        val subscriptionId = payload.subscriptionId ?: WebhookSimPolicy.NO_SIM
+        return when (decide(context, payload.address, payload.body.orEmpty(), subscriptionId)) {
+            Decision.FORWARD -> send(context, payload)
+            // The SIMs may not be readable yet right after a reboot, so try again until the message expires.
+            Decision.SIM_MISSING -> Delivery.RETRY
+            Decision.SKIP -> Delivery.DROPPED
+        }
+    }
+
+    private fun send(context: Context, payload: WebhookPayload): Delivery {
         val token = context.config.webhookBearerToken
         val result = WebhookClient.post(buildRequest(context, payload), token, allowCleartext)
         val code = result.responseCode
@@ -94,7 +114,7 @@ object WebhookSender {
         val timestamp = System.currentTimeMillis()
         val payload = WebhookPayload(
             eventType = WebhookEventType.TEST.value,
-            eventId = eventId(context.packageName, "test", timestamp.toString()),
+            eventId = WebhookClient.eventId(context.packageName, "test", timestamp.toString()),
             address = "+1234567890",
             body = "This is a test webhook from Fossify Messages.",
             timestamp = timestamp,
@@ -110,12 +130,29 @@ object WebhookSender {
         return WebhookClient.post(request, context.config.webhookBearerToken, allowCleartext)
     }
 
-    private fun shouldForward(context: Context, address: String): Boolean {
+    private fun decide(context: Context, address: String, body: String, subscriptionId: Int): Decision {
         val config = context.config
-        return config.webhookEnabled &&
+        val configured = config.webhookEnabled &&
             config.webhookForwardIncoming &&
-            WebhookSenderFilter.isApproved(address, config.webhookApprovedSenders) &&
             WebhookClient.policyError(config.webhookUrl, config.webhookBearerToken, allowCleartext) == null
+        if (!configured) {
+            return Decision.SKIP
+        }
+
+        val activeIds = WebhookSims.active(context)?.map { it.subscriptionId }
+        val forward = WebhookSimPolicy.isFromSelectedSim(WebhookSims.selectedId(context), subscriptionId, activeIds) &&
+            WebhookMessageFilter.matches(
+                mode = config.webhookFilterMode,
+                address = address,
+                body = body,
+                senders = config.webhookApprovedSenders,
+                keywords = config.webhookFilterKeywords
+            )
+        return when (WebhookSims.state(context, activeIds)) {
+            WebhookSimPolicy.State.READY -> if (forward) Decision.FORWARD else Decision.SKIP
+            WebhookSimPolicy.State.MISSING -> Decision.SIM_MISSING
+            WebhookSimPolicy.State.NOT_SELECTED, WebhookSimPolicy.State.RESELECT_REQUIRED -> Decision.SKIP
+        }
     }
 
     private fun loadIncomingSms(context: Context, messageId: Long): WebhookPayload? {
@@ -133,7 +170,12 @@ object WebhookSender {
             val contactName = context.getNameAndPhotoFromPhoneNumber(address).name
             WebhookPayload(
                 eventType = WebhookEventType.INCOMING_SMS.value,
-                eventId = eventId(context.packageName, messageId.toString(), timestamp.toString(), address),
+                eventId = WebhookClient.eventId(
+                    context.packageName,
+                    messageId.toString(),
+                    timestamp.toString(),
+                    address
+                ),
                 address = address,
                 contactName = contactName.takeIf { name -> name.isNotEmpty() && name != address },
                 body = it.getString(it.getColumnIndexOrThrow(Sms.BODY))?.takeIf { body -> body.isNotEmpty() },
@@ -145,12 +187,6 @@ object WebhookSender {
                 appPackage = context.packageName
             )
         }
-    }
-
-    /** Stable per message, so the receiver can discard a retry it has already processed. */
-    private fun eventId(vararg parts: String): String {
-        val digest = MessageDigest.getInstance("SHA-256").digest(parts.joinToString("|").toByteArray())
-        return digest.joinToString("") { "%02x".format(it) }.take(EVENT_ID_LENGTH)
     }
 
     private fun buildRequest(context: Context, payload: WebhookPayload): WebhookTestResult {

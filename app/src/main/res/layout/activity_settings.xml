@@ -546,6 +546,52 @@
             </RelativeLayout>
 
             <RelativeLayout
+                android:id="@+id/settings_webhook_sim_holder"
+                style="@style/SettingsHolderTextViewStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <org.fossify.commons.views.MyTextView
+                    android:id="@+id/settings_webhook_sim_label"
+                    style="@style/SettingsTextLabelStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/webhook_sim" />
+
+                <org.fossify.commons.views.MyTextView
+                    android:id="@+id/settings_webhook_sim"
+                    style="@style/SettingsTextValueStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@+id/settings_webhook_sim_label"
+                    tools:text="SIM 1 · Carrier" />
+
+            </RelativeLayout>
+
+            <RelativeLayout
+                android:id="@+id/settings_webhook_filter_holder"
+                style="@style/SettingsHolderTextViewStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <org.fossify.commons.views.MyTextView
+                    android:id="@+id/settings_webhook_filter_label"
+                    style="@style/SettingsTextLabelStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/webhook_filter" />
+
+                <org.fossify.commons.views.MyTextView
+                    android:id="@+id/settings_webhook_filter"
+                    style="@style/SettingsTextValueStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@+id/settings_webhook_filter_label"
+                    tools:text="No filter" />
+
+            </RelativeLayout>
+
+            <RelativeLayout
                 android:id="@+id/settings_webhook_approved_senders_holder"
                 style="@style/SettingsHolderTextViewStyle"
                 android:layout_width="match_parent"
@@ -565,6 +611,29 @@
                     android:layout_height="wrap_content"
                     android:layout_below="@+id/settings_webhook_approved_senders_label"
                     tools:text="GitHub, +97312345678" />
+
+            </RelativeLayout>
+
+            <RelativeLayout
+                android:id="@+id/settings_webhook_keywords_holder"
+                style="@style/SettingsHolderTextViewStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <org.fossify.commons.views.MyTextView
+                    android:id="@+id/settings_webhook_keywords_label"
+                    style="@style/SettingsTextLabelStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/webhook_keywords" />
+
+                <org.fossify.commons.views.MyTextView
+                    android:id="@+id/settings_webhook_keywords"
+                    style="@style/SettingsTextValueStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@+id/settings_webhook_keywords_label"
+                    tools:text="code, OTP" />
 
             </RelativeLayout>
 
